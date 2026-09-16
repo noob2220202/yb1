@@ -21,7 +21,10 @@ def dashboard(request: Request, league: str | None = None, db: Session = Depends
     horizon = now + timedelta(hours=48)
 
     query = db.query(Fixture).filter(
-        Fixture.kickoff_utc >= now, Fixture.kickoff_utc <= horizon, Fixture.status == "scheduled"
+        Fixture.kickoff_utc >= now,
+        Fixture.kickoff_utc <= horizon,
+        Fixture.status == "scheduled",
+        Fixture.source == "api",
     )
     if league:
         query = query.filter(Fixture.league_name == league)

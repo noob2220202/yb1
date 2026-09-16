@@ -53,6 +53,25 @@ python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
 curl http://127.0.0.1:8000/health   # {"status":"ok","db":true}
 ```
 
+## API 키 없이 수동으로 쓰기 (`/manual`)
+
+API-Football은 유료이므로, 키를 결제하기 전에도 조합 추천 엔진을 그대로 쓸 수
+있도록 수동 입력 기능을 제공한다.
+
+- 상단 네비게이션의 **수동 입력** → **+ 새 경기 입력**에서 팀명/킥오프와
+  오즈를 직접 입력한다.
+- 입력 항목은 조합 계산에 실제로 쓰이는 마켓만: **1X2(필수)**, DNB, 아시안
+  핸디캡 ±0.5/±1, 승리마진(홈 1골차/홈 2골차+/무승부/원정 1골차/원정 2골차+).
+  모르는 값은 비워두면 해당 마켓이 필요한 조합만 자동으로 생략된다.
+- 핸디캡 두 라인(±0.5, ±1) 모두 "정배팀(홈/원정)"을 한 번만 고르면 되고,
+  나머지는 그 팀 기준 오즈만 입력하면 된다 — 어느 팀이 실제 정배인지는
+  1X2 오즈로 devig 엔진이 다시 한번 검증해서 조합을 만든다.
+- 저장하면 자동 수집 경기와 동일한 `/fixtures/{id}` 페이지로 이동해 조합
+  추천(적중확률/손익분기확률/EV%)을 바로 확인할 수 있다.
+- 수동 입력 경기는 대시보드(`/`)에는 나오지 않고 `/manual` 목록에서만 관리한다.
+- 오즈가 바뀌면(라인업 발표 등) 같은 경기를 다시 "수정"하면 되며, 저장할
+  때마다 기존 값은 덮어써진다(시계열 이력 없음 — 자동 수집과 다른 점).
+
 ## API-Football 키 연동 (중요 — 실제 데이터 수집을 위한 필수 단계)
 
 이 저장소의 `app/services/market_type_mapping.py`는 API-Football v3 공개 문서를
@@ -144,9 +163,10 @@ odds-app/
 │   │   ├── devig.py              # 마진 제거 확률 계산
 │   │   ├── staking.py            # 이익균등화 계산기
 │   │   ├── combo_engine.py       # 조합 생성/랭킹
+│   │   ├── manual_entry.py       # API 키 없이 수동 오즈 입력
 │   │   └── scheduler.py          # APScheduler job 정의
-│   ├── routers/ (fixtures.py, calculator.py)
-│   └── templates/ (base/dashboard/fixture_detail/calculator.html)
+│   ├── routers/ (fixtures.py, manual.py, calculator.py)
+│   └── templates/ (base/dashboard/fixture_detail/calculator/manual_list/manual_form.html)
 ├── alembic/
 ├── tests/
 ├── scripts/inspect_api_response.py

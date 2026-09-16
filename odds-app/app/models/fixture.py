@@ -18,6 +18,7 @@ class Fixture(Base):
     away_team: Mapped[str] = mapped_column(String(200), nullable=False)
     kickoff_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="scheduled", server_default="scheduled")
+    source: Mapped[str] = mapped_column(String(10), default="api", server_default="api")
     home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{% if fixture %}경기 수정{% else %}새 경기 입력{% endif %}{% endblock %}
+{% block content %}
+{% macro num_input(name, value, placeholder="") %}
+<input type="number" step="0.001" name="{{ name }}" value="{{ value if value is not none else '' }}"
+       placeholder="{{ placeholder }}" class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+{% endmacro %}
+
+<a href="/manual" class="text-sm text-slate-400 hover:text-white">&larr; 수동 입력 목록으로</a>
+<h1 class="text-xl font-bold mt-1 mb-4">{% if fixture %}경기 정보/오즈 수정{% else %}새 경기 입력{% endif %}</h1>
+
+{% if error %}
+<div class="mb-4 p-3 rounded bg-red-950 border border-red-700 text-red-300 text-sm">오류: {{ error }}</div>
+{% endif %}
+
+<div class="text-xs text-slate-400 border border-slate-700 rounded p-2 mb-4">
+    조합 추천에 필요한 마켓만 입력하면 됩니다. 1X2는 필수, 나머지는 알고 있는 만큼만 입력해도
+    해당 마켓이 필요 없는 조합은 자동으로 생략됩니다. 저장 시 기존 값은 덮어써집니다(이력 없음).
+</div>
+
+<form method="post" action="{% if fixture %}/manual/{{ fixture.id }}/edit{% else %}/manual/new{% endif %}" class="space-y-6 max-w-2xl">
+
+    <fieldset class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <legend class="text-sm font-semibold text-emerald-400 px-1">경기 정보</legend>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">홈팀</label>
+                <input type="text" name="home_team" required value="{{ fixture.home_team if fixture else '' }}" class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">원정팀</label>
+                <input type="text" name="away_team" required value="{{ fixture.away_team if fixture else '' }}" class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">리그(선택)</label>
+                <input type="text" name="league_name" value="{{ fixture.league_name if fixture and fixture.league_name != '수동 입력' else '' }}" class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">킥오프 일시</label>
+                <input type="datetime-local" name="kickoff_utc" required
+                       value="{{ fixture.kickoff_utc.strftime('%Y-%m-%dT%H:%M') if fixture else '' }}"
+                       class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <legend class="text-sm font-semibold text-emerald-400 px-1">1X2 (필수)</legend>
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">홈 승</label>
+                {{ num_input("odds_1x2_home", form.odds_1x2_home, "1.90") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">무승부</label>
+                {{ num_input("odds_1x2_draw", form.odds_1x2_draw, "3.60") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">원정 승</label>
+                {{ num_input("odds_1x2_away", form.odds_1x2_away, "4.20") }}
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <legend class="text-sm font-semibold text-emerald-400 px-1">무승부무효(DNB) — 선택</legend>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">홈 DNB</label>
+                {{ num_input("odds_dnb_home", form.odds_dnb_home, "1.55") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">원정 DNB</label>
+                {{ num_input("odds_dnb_away", form.odds_dnb_away, "2.60") }}
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <legend class="text-sm font-semibold text-emerald-400 px-1">아시안 핸디캡 — 선택</legend>
+        <div>
+            <label class="block text-xs text-slate-400 mb-1">정배팀(핸디캡 마이너스를 받는 팀)</label>
+            <select name="favorite_team" class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+                <option value="home" {% if form.favorite_team == "home" %}selected{% endif %}>홈팀</option>
+                <option value="away" {% if form.favorite_team == "away" %}selected{% endif %}>원정팀</option>
+            </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">정배팀 -0.5 오즈</label>
+                {{ num_input("odds_ah05_favorite", form.odds_ah05_favorite, "1.95") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">역배팀 +0.5 오즈</label>
+                {{ num_input("odds_ah05_underdog", form.odds_ah05_underdog, "1.85") }}
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">정배팀 -1 오즈</label>
+                {{ num_input("odds_ah1_favorite", form.odds_ah1_favorite, "1.30") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">역배팀 +1 오즈</label>
+                {{ num_input("odds_ah1_underdog", form.odds_ah1_underdog, "3.20") }}
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <legend class="text-sm font-semibold text-emerald-400 px-1">승리마진 — 선택</legend>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">홈 1골차 승</label>
+                {{ num_input("margin_home_by1", form.margin_home_by1, "3.5") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">홈 2골차+ 승</label>
+                {{ num_input("margin_home_by2plus", form.margin_home_by2plus, "6.0") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">무승부</label>
+                {{ num_input("margin_draw", form.margin_draw, "3.4") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">원정 1골차 승</label>
+                {{ num_input("margin_away_by1", form.margin_away_by1, "7.0") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">원정 2골차+ 승</label>
+                {{ num_input("margin_away_by2plus", form.margin_away_by2plus, "15.0") }}
+            </div>
+        </div>
+    </fieldset>
+
+    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded px-6 py-2 font-semibold">
+        {% if fixture %}저장{% else %}경기 생성{% endif %}
+    </button>
+</form>
+{% endblock %}

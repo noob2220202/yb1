@@ -2,8 +2,14 @@
 {% block title %}{{ fixture.home_team }} vs {{ fixture.away_team }}{% endblock %}
 {% block content %}
 <div class="mb-4">
-    <a href="/" class="text-sm text-slate-400 hover:text-white">&larr; 대시보드로</a>
-    <h1 class="text-xl font-bold mt-1">{{ fixture.home_team }} vs {{ fixture.away_team }}</h1>
+    <a href="{{ '/manual' if fixture.source == 'manual' else '/' }}" class="text-sm text-slate-400 hover:text-white">&larr; {{ '수동 입력 목록으로' if fixture.source == 'manual' else '대시보드로' }}</a>
+    <div class="flex items-center gap-2 mt-1">
+        <h1 class="text-xl font-bold">{{ fixture.home_team }} vs {{ fixture.away_team }}</h1>
+        {% if fixture.source == "manual" %}
+        <span class="bg-slate-700 text-slate-300 text-xs px-2 py-1 rounded">수동 입력</span>
+        <a href="/manual/{{ fixture.id }}/edit" class="text-xs text-emerald-400 hover:underline">오즈 수정</a>
+        {% endif %}
+    </div>
     <div class="text-sm text-slate-400">{{ fixture.league_name }} · {{ fixture.kickoff_utc.strftime("%Y-%m-%d %H:%M UTC") }}</div>
 </div>
 

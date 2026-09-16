@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}수동 입력 경기{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold">수동 입력 경기</h1>
+    <a href="/manual/new" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded px-4 py-2 text-sm font-semibold">+ 새 경기 입력</a>
+</div>
+
+<div class="text-xs text-slate-400 border border-slate-700 rounded p-2 mb-4">
+    API 키 없이 직접 입력한 경기 목록입니다. 자동 수집 경기는 대시보드에 별도로 표시됩니다.
+</div>
+
+{% if not fixtures %}
+<div class="text-slate-400 border border-slate-700 rounded p-6 text-center">
+    아직 수동으로 입력한 경기가 없습니다. "새 경기 입력"을 눌러 오즈를 입력해보세요.
+</div>
+{% else %}
+<div class="space-y-2">
+    {% for f in fixtures %}
+    <div class="bg-slate-800 border border-slate-700 rounded p-3 flex items-center justify-between">
+        <a href="/fixtures/{{ f.id }}" class="flex-1">
+            <div class="text-xs text-slate-400">{{ f.league_name }}</div>
+            <div class="font-semibold">{{ f.home_team }} vs {{ f.away_team }}</div>
+            <div class="text-xs text-slate-400">{{ f.kickoff_utc.strftime("%Y-%m-%d %H:%M") }}</div>
+        </a>
+        <div class="flex gap-2">
+            <a href="/manual/{{ f.id }}/edit" class="text-xs bg-slate-700 hover:bg-slate-600 rounded px-3 py-1">수정</a>
+            <form method="post" action="/manual/{{ f.id }}/delete" onsubmit="return confirm('삭제하시겠습니까?');">
+                <button type="submit" class="text-xs bg-red-900 hover:bg-red-800 text-red-200 rounded px-3 py-1">삭제</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
