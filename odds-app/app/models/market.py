@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -10,9 +10,9 @@ from app.db import Base
 class Market(Base):
     __tablename__ = "markets"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     fixture_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("fixtures.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("fixtures.id", ondelete="CASCADE"), nullable=False
     )
     market_type: Mapped[str] = mapped_column(String(50), nullable=False)
     line: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)

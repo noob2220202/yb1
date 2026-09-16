@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -10,16 +10,16 @@ from app.db import Base
 class ComboRecommendation(Base):
     __tablename__ = "combo_recommendations"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     fixture_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("fixtures.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("fixtures.id", ondelete="CASCADE"), nullable=False
     )
     leg_a_market_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("markets.id"), nullable=True
+        Integer, ForeignKey("markets.id"), nullable=True
     )
     leg_a_selection: Mapped[str | None] = mapped_column(String(50), nullable=True)
     leg_b_market_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("markets.id"), nullable=True
+        Integer, ForeignKey("markets.id"), nullable=True
     )
     leg_b_selection: Mapped[str | None] = mapped_column(String(50), nullable=True)
     combo_type: Mapped[str | None] = mapped_column(String(50), nullable=True)

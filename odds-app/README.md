@@ -11,46 +11,106 @@
 
 ## 기술 스택
 
-FastAPI + Jinja2 + HTMX + Tailwind CDN (빌드 파이프라인 없음), PostgreSQL +
+FastAPI + Jinja2 + HTMX + Tailwind CDN (빌드 파이프라인 없음), **SQLite** +
 SQLAlchemy 2.x + Alembic, APScheduler(프로세스 내 스케줄러). venv/Docker 미사용 —
-시스템에 직접 설치.
+시스템에 직접 설치. 별도 DB 서버 설치/운영이 필요 없다 — 앱 폴더 안의 파일
+하나(`oddsapp.db`)가 DB 전체다.
 
-## 로컬 개발 환경 설정
+## 빠른 시작: git clone → pm2 실행
+
+새 서버(VPS)에서 처음부터 띄우는 전체 과정이다. 도메인/Caddy 연결은 마지막 절
+참고.
+
+### 1. 시스템 준비 (Python + Node/pm2)
 
 ```bash
 sudo apt update
-sudo apt install -y python3-pip postgresql postgresql-contrib
+sudo apt install -y python3-pip git
+
+# pm2는 Node.js 위에서 돌아가므로 Node/npm이 필요하다 (없는 경우만)
+sudo apt install -y nodejs npm
+sudo npm install -g pm2
+```
+
+### 2. 저장소 클론
+
+```bash
+cd /opt   # 원하는 배포 경로 — 이후 예시는 전부 /opt/yb1 기준
+sudo git clone https://github.com/noob2220202/yb1.git
+cd yb1/odds-app
+```
+
+### 3. 파이썬 의존성 설치 (venv 없이 시스템에 직접)
+
+```bash
 pip install --break-system-packages -r requirements.txt
 ```
 
-### PostgreSQL 초기 설정
-
-```bash
-sudo -u postgres createuser oddsapp
-sudo -u postgres createdb oddsapp_db -O oddsapp
-sudo -u postgres psql -c "ALTER USER oddsapp WITH PASSWORD '설정할비밀번호';"
-
-# 테스트용 DB (pytest가 사용)
-sudo -u postgres createdb oddsapp_test -O oddsapp
-```
-
-`.env.example`을 `.env`로 복사하고 `DATABASE_URL`, `API_FOOTBALL_KEY` 등을 채운다.
+### 4. 환경변수 설정
 
 ```bash
 cp .env.example .env
 ```
 
-### DB 마이그레이션
+`.env`는 기본값 그대로도 바로 동작한다 (`DATABASE_URL=sqlite:///./oddsapp.db`).
+축구 배당을 자동 수집하려면 `API_FOOTBALL_KEY`를 채우고, 결제 전이라면 비워두고
+`/manual` 페이지로 수동 입력만 써도 된다. 배포 환경에서는 스케줄러를 켜기 위해
+`ENABLE_SCHEDULER=true`로 바꿔둔다.
+
+### 5. DB 마이그레이션 (SQLite 파일 생성)
 
 ```bash
 python3 -m alembic upgrade head
+# odds-app/oddsapp.db 파일이 생성된다
 ```
 
-### 헬스체크
+### 6. 로컬에서 한 번 확인
 
 ```bash
 python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
 curl http://127.0.0.1:8000/health   # {"status":"ok","db":true}
+kill %1   # 확인 후 종료 (pm2로 다시 띄울 것이므로)
+```
+
+### 7. pm2로 상시 구동
+
+저장소에 `ecosystem.config.js`가 이미 포함되어 있다 (`python3 -m uvicorn ...`을
+pm2 프로세스로 등록):
+
+```bash
+cd /opt/yb1/odds-app
+pm2 start ecosystem.config.js
+pm2 status                # odds-app 프로세스가 online인지 확인
+pm2 logs odds-app --lines 50   # 로그 확인
+```
+
+### 8. 재부팅 후에도 자동 시작되도록 등록
+
+```bash
+pm2 save                  # 현재 pm2 프로세스 목록 저장
+pm2 startup               # 출력되는 sudo 명령을 그대로 한 번 복사해서 실행
+```
+
+이후로는 서버가 재부팅돼도 pm2가 `odds-app`을 자동으로 다시 띄운다.
+
+### 자주 쓰는 pm2 명령
+
+```bash
+pm2 restart odds-app      # 코드 수정 후 재시작
+pm2 stop odds-app
+pm2 delete odds-app       # 프로세스 목록에서 완전히 제거
+pm2 logs odds-app         # 실시간 로그
+```
+
+코드를 업데이트할 때는:
+
+```bash
+cd /opt/yb1
+git pull
+cd odds-app
+pip install --break-system-packages -r requirements.txt   # 의존성 변경 시
+python3 -m alembic upgrade head                            # 스키마 변경 시
+pm2 restart odds-app
 ```
 
 ## API 키 없이 수동으로 쓰기 (`/manual`)
@@ -93,9 +153,11 @@ mock 데이터로 이미 end-to-end 검증되어 있다.
 python3 -m pytest -q
 ```
 
-`services/devig.py`, `services/staking.py`, `services/combo_engine.py`,
-`services/ingest.py`에 대한 단위/통합 테스트가 포함되어 있으며, 스테이킹
-계산기는 SPEC.md 12절의 실측 검증 수치를 회귀 테스트로 고정해뒀다.
+테스트는 파일 기반 DB와 분리된 인메모리 SQLite를 사용하므로 (`tests/conftest.py`),
+별도 테스트 DB 설정 없이 바로 실행된다. `services/devig.py`, `services/staking.py`,
+`services/combo_engine.py`, `services/ingest.py`, `services/manual_entry.py`에 대한
+단위/통합 테스트가 포함되어 있으며, 스테이킹 계산기는 SPEC.md 12절의 실측 검증
+수치를 회귀 테스트로 고정해뒀다.
 
 ## 수동 시딩(개발용)
 
@@ -103,37 +165,10 @@ python3 -m pytest -q
 mock 클라이언트를 주입해 샘플 fixture를 넣을 수 있다. 예시는
 `tests/test_ingest.py`의 `FakeOddsApiClient`를 참고.
 
-## 배포 (venv/Docker 없이, systemd + 기존 Caddy)
+## Caddy 리버스 프록시로 도메인 연결 (선택)
 
-### systemd 서비스
-
-`/etc/systemd/system/oddsapp.service`:
-
-```ini
-[Unit]
-Description=Odds Analysis App
-After=network.target postgresql.service
-
-[Service]
-WorkingDirectory=/opt/odds-app
-ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-Restart=always
-EnvironmentFile=/opt/odds-app/.env
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now oddsapp
-sudo systemctl status oddsapp
-```
-
-배포 전 `.env`의 `ENABLE_SCHEDULER=true`로 설정해야 APScheduler가 오즈 수집을
-자동으로 시작한다 (기본값은 개발 편의를 위해 로컬 `.env`에서 `false`로 되어있음).
-
-### Caddy 리버스 프록시 (기존 Caddyfile에 추가)
+pm2가 `127.0.0.1:8000`(정확히는 `0.0.0.0:8000`)에서 서비스를 띄우고 있으므로,
+기존 Caddy에 한 줄만 추가하면 된다 (`deploy/Caddyfile.snippet` 참고):
 
 ```
 odds.본인도메인.com {
@@ -144,6 +179,22 @@ odds.본인도메인.com {
 ```bash
 sudo systemctl reload caddy
 ```
+
+## systemd를 쓰고 싶다면 (pm2 대신 — 둘 다 필요하지는 않음)
+
+pm2 대신 systemd로 상시 구동하고 싶다면 `deploy/oddsapp.service`를 참고한다
+(`ExecStart`/`WorkingDirectory`의 경로를 실제 클론 위치로 맞출 것):
+
+```bash
+sudo cp deploy/oddsapp.service /etc/systemd/system/oddsapp.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now oddsapp
+sudo systemctl status oddsapp
+```
+
+배포 전 `.env`의 `ENABLE_SCHEDULER=true`로 설정해야 APScheduler가 오즈 수집을
+자동으로 시작한다 (기본값은 개발 편의를 위해 로컬 `.env`에서 `false`로 되어있음).
+pm2 방식을 쓴다면 이 절은 건너뛰어도 된다.
 
 ## 디렉토리 구조
 
@@ -170,6 +221,9 @@ odds-app/
 ├── alembic/
 ├── tests/
 ├── scripts/inspect_api_response.py
+├── deploy/ (oddsapp.service, Caddyfile.snippet)
+├── ecosystem.config.js         # pm2 프로세스 정의
+├── oddsapp.db                   # SQLite DB 파일 (git-ignored, 마이그레이션으로 생성)
 ├── .env.example
 └── requirements.txt
 ```

@@ -1,12 +1,14 @@
 [Unit]
 Description=Odds Analysis App
-After=network.target postgresql.service
+After=network.target
 
 [Service]
-WorkingDirectory=/opt/odds-app
-ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+# 실제 클론 경로에 맞게 두 줄 모두 수정할 것 (예: git clone 위치가 /opt/yb1이면
+# /opt/yb1/odds-app)
+WorkingDirectory=/opt/yb1/odds-app
+ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=always
-EnvironmentFile=/opt/odds-app/.env
+EnvironmentFile=/opt/yb1/odds-app/.env
 
 [Install]
 WantedBy=multi-user.target

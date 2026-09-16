@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.models.combo import ComboRecommendation
@@ -24,7 +25,7 @@ def _build_fixture(db):
         league_name="Test League",
         home_team="Home FC",
         away_team="Away FC",
-        kickoff_utc="2026-09-20T15:00:00+00:00",
+        kickoff_utc=datetime(2026, 9, 20, 15, 0, 0, tzinfo=timezone.utc),
     )
     db.add(fixture)
     db.flush()

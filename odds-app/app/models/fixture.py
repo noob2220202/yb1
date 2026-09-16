@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Integer, String, func
+from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -9,7 +9,7 @@ from app.db import Base
 class Fixture(Base):
     __tablename__ = "fixtures"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     external_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     league_id: Mapped[int] = mapped_column(Integer, nullable=False)
     league_name: Mapped[str] = mapped_column(String(200), nullable=False)

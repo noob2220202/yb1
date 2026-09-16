@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "postgresql://oddsapp:devlocalpass@localhost/oddsapp_db"
+    database_url: str = "sqlite:///./oddsapp.db"
 
     api_football_key: str = ""
     api_football_base_url: str = "https://v3.football.api-sports.io"
