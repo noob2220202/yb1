@@ -1,0 +1,12 @@
+[Unit]
+Description=Odds Analysis App
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=/opt/odds-app
+ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+EnvironmentFile=/opt/odds-app/.env
+
+[Install]
+WantedBy=multi-user.target

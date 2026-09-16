@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ fixture.home_team }} vs {{ fixture.away_team }}{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <a href="/" class="text-sm text-slate-400 hover:text-white">&larr; 대시보드로</a>
+    <h1 class="text-xl font-bold mt-1">{{ fixture.home_team }} vs {{ fixture.away_team }}</h1>
+    <div class="text-sm text-slate-400">{{ fixture.league_name }} · {{ fixture.kickoff_utc.strftime("%Y-%m-%d %H:%M UTC") }}</div>
+</div>
+
+<h2 class="text-lg font-semibold mb-2">추천 조합</h2>
+
+<div class="text-xs text-amber-300 border border-amber-700 bg-amber-950/40 rounded p-2 mb-4">
+    ⚠ 이 배분은 손익 분산만 줄일 뿐 기대값을 개선하지 않습니다
+</div>
+
+{% if not combos %}
+<div class="text-slate-400 border border-slate-700 rounded p-6 text-center mb-6">
+    이 경기에 대해 생성 가능한 조합이 없습니다 (필요한 마켓 데이터 부족: 1X2 / DNB / AH / 승리마진).
+</div>
+{% else %}
+<div class="grid gap-4 md:grid-cols-2 mb-8">
+    {% for c in combos %}
+    <div class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-emerald-400">{{ c.description }}</h3>
+            {% if c.ev_negative %}
+            <span class="bg-red-900 text-red-200 text-xs px-2 py-1 rounded">⚠ 마이너스 EV</span>
+            {% else %}
+            <span class="bg-emerald-900 text-emerald-200 text-xs px-2 py-1 rounded">+EV</span>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-sm">
+            <div class="bg-slate-900 rounded p-2">
+                <div class="text-slate-400 text-xs">적중확률(추정)</div>
+                <div class="font-mono">{{ "%.1f"|format(c.implied_hit_rate * 100) }}%</div>
+            </div>
+            <div class="bg-slate-900 rounded p-2">
+                <div class="text-slate-400 text-xs">손익분기확률</div>
+                <div class="font-mono">{{ "%.1f"|format(c.breakeven_prob * 100) }}%</div>
+            </div>
+            <div class="bg-slate-900 rounded p-2">
+                <div class="text-slate-400 text-xs">추정 EV</div>
+                <div class="font-mono {{ 'text-red-400' if c.ev_negative else 'text-emerald-400' }}">{{ "%.2f"|format(c.estimated_ev_pct) }}%</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-sm">
+            {% for key, value in c.staking.items() %}
+                {% if key.startswith('stake_') %}
+                <div class="bg-slate-900 rounded p-2">
+                    <div class="text-slate-400 text-xs">{{ key }}</div>
+                    <div class="font-mono">{{ "%.0f"|format(value) }}원</div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <table class="w-full text-xs border-collapse">
+            <thead>
+                <tr class="text-left text-slate-400 border-b border-slate-700">
+                    <th class="py-1 pr-2">시나리오</th>
+                    <th class="py-1 pr-2">다리 A</th>
+                    <th class="py-1 pr-2">다리 B</th>
+                    <th class="py-1 pr-2">순손익</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for name, s in c.staking.all_scenarios.items() %}
+                <tr class="border-b border-slate-800">
+                    <td class="py-1 pr-2">{{ name }}</td>
+                    <td class="py-1 pr-2">{{ s.leg_a }}</td>
+                    <td class="py-1 pr-2">{{ s.leg_b }}</td>
+                    <td class="py-1 pr-2 font-mono {{ 'text-emerald-400' if s.net_profit >= 0 else 'text-red-400' }}">{{ "%.0f"|format(s.net_profit) }}원</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="text-lg font-semibold mb-2">전체 마켓 오즈 (최신)</h2>
+<div class="overflow-x-auto">
+<table class="w-full text-sm border-collapse">
+    <thead>
+        <tr class="text-left text-slate-400 border-b border-slate-700">
+            <th class="py-1 pr-4">마켓</th>
+            <th class="py-1 pr-4">라인</th>
+            <th class="py-1 pr-4">북메이커</th>
+            <th class="py-1 pr-4">셀렉션 / 오즈</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in markets_with_odds %}
+        <tr class="border-b border-slate-800 align-top">
+            <td class="py-1 pr-4">{{ entry.market.market_type }}</td>
+            <td class="py-1 pr-4">{{ entry.market.line if entry.market.line is not none else "-" }}</td>
+            <td class="py-1 pr-4">{{ entry.market.bookmaker }}</td>
+            <td class="py-1 pr-4">
+                {% for o in entry.odds %}
+                <span class="inline-block bg-slate-800 rounded px-2 py-0.5 mr-1 mb-1 font-mono text-xs">{{ o.selection }}: {{ o.decimal_odds }}</span>
+                {% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

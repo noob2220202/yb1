@@ -1,0 +1,65 @@
+<div id="calc-result">
+{% if error %}
+    <div class="mt-4 p-4 rounded bg-red-950 border border-red-700 text-red-300">
+        오류: {{ error }}
+    </div>
+{% elif result %}
+    <div class="mt-4 p-4 rounded bg-slate-800 border border-slate-700 space-y-4">
+        <h3 class="font-semibold text-emerald-400">{{ combo_labels[combo_type].label }}</h3>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            {% for key, value in result.items() %}
+                {% if key.startswith('stake_') %}
+                <div class="bg-slate-900 rounded p-3">
+                    <div class="text-slate-400 text-xs">{{ key }}</div>
+                    <div class="text-lg font-mono">{{ "%.0f"|format(value) }}원</div>
+                </div>
+                {% endif %}
+            {% endfor %}
+            <div class="bg-slate-900 rounded p-3">
+                <div class="text-slate-400 text-xs">총 스테이크</div>
+                <div class="text-lg font-mono">{{ "%.0f"|format(result.total_stake) }}원</div>
+            </div>
+            <div class="bg-slate-900 rounded p-3">
+                <div class="text-slate-400 text-xs">목표 이익</div>
+                <div class="text-lg font-mono">{{ "%.0f"|format(result.target_profit) }}원</div>
+            </div>
+        </div>
+
+        <div>
+            <div class="text-sm text-slate-400 mb-1">손익분기 확률(최악의 이익 시나리오 기준)</div>
+            <div class="text-2xl font-mono text-amber-400">{{ "%.1f"|format(result.breakeven_prob * 100) }}%</div>
+        </div>
+
+        <div>
+            <div class="text-sm text-slate-400 mb-2">시나리오별 손익</div>
+            <table class="w-full text-sm border-collapse">
+                <thead>
+                    <tr class="text-left text-slate-400 border-b border-slate-700">
+                        <th class="py-1 pr-4">시나리오</th>
+                        <th class="py-1 pr-4">다리 A</th>
+                        <th class="py-1 pr-4">다리 B</th>
+                        <th class="py-1 pr-4">순손익</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name, s in result.all_scenarios.items() %}
+                    <tr class="border-b border-slate-800">
+                        <td class="py-1 pr-4">{{ name }}</td>
+                        <td class="py-1 pr-4">{{ s.leg_a }}</td>
+                        <td class="py-1 pr-4">{{ s.leg_b }}</td>
+                        <td class="py-1 pr-4 font-mono {{ 'text-emerald-400' if s.net_profit >= 0 else 'text-red-400' }}">
+                            {{ "%.0f"|format(s.net_profit) }}원
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-xs text-amber-300 border border-amber-700 bg-amber-950/40 rounded p-2">
+            ⚠ {{ disclaimer }}
+        </div>
+    </div>
+{% endif %}
+</div>

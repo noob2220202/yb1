@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}대시보드{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-4">오늘/내일 예정 경기 (48시간 이내)</h1>
+
+<form method="get" class="mb-4 flex items-center gap-2">
+    <label class="text-sm text-slate-400">리그 필터:</label>
+    <select name="league" onchange="this.form.submit()" class="bg-slate-800 border border-slate-700 rounded p-2 text-sm">
+        <option value="">전체</option>
+        {% for l in leagues %}
+        <option value="{{ l }}" {% if l == selected_league %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+{% if not fixtures %}
+<div class="text-slate-400 border border-slate-700 rounded p-6 text-center">
+    예정된 경기가 없습니다. 오즈 수집 파이프라인이 아직 실행되지 않았거나 API 키가 설정되지 않았을 수 있습니다.
+</div>
+{% else %}
+<div class="space-y-2">
+    {% for f in fixtures %}
+    <a href="/fixtures/{{ f.id }}" class="block bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded p-3 flex items-center justify-between">
+        <div>
+            <div class="text-xs text-slate-400">{{ f.league_name }}{% if f.country %} · {{ f.country }}{% endif %}</div>
+            <div class="font-semibold">{{ f.home_team }} vs {{ f.away_team }}</div>
+            <div class="text-xs text-slate-400">{{ f.kickoff_utc.strftime("%Y-%m-%d %H:%M UTC") }}</div>
+        </div>
+        <div>
+            {% if f.id in combo_fixture_ids %}
+            <span class="bg-emerald-700 text-emerald-100 text-xs px-2 py-1 rounded">추천 조합 있음</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

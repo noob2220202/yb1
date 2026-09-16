@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}이익균등화 계산기{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-4">이익균등화 계산기</h1>
+
+<div class="text-xs text-amber-300 border border-amber-700 bg-amber-950/40 rounded p-2 mb-4">
+    ⚠ {{ disclaimer }}
+</div>
+
+<form hx-post="/calculator/compute" hx-target="#calc-result" hx-swap="outerHTML"
+      class="bg-slate-800 border border-slate-700 rounded p-4 space-y-4 max-w-lg">
+
+    <div>
+        <label class="block text-sm text-slate-400 mb-1">조합 타입</label>
+        <select name="combo_type" id="combo_type" class="w-full bg-slate-900 border border-slate-700 rounded p-2"
+                hx-on:change="document.getElementById('leg_a_label').innerText = window.comboLabels[this.value].leg_a; document.getElementById('leg_b_label').innerText = window.comboLabels[this.value].leg_b;">
+            {% for key, meta in combo_labels.items() %}
+            <option value="{{ key }}">{{ meta.label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label class="block text-sm text-slate-400 mb-1" id="leg_a_label">{{ combo_labels['draw_dnb0'].leg_a }}</label>
+        <input type="number" step="0.001" name="odds_a" required class="w-full bg-slate-900 border border-slate-700 rounded p-2" placeholder="예: 3.46">
+    </div>
+
+    <div>
+        <label class="block text-sm text-slate-400 mb-1" id="leg_b_label">{{ combo_labels['draw_dnb0'].leg_b }}</label>
+        <input type="number" step="0.001" name="odds_b" required class="w-full bg-slate-900 border border-slate-700 rounded p-2" placeholder="예: 1.854">
+    </div>
+
+    <div>
+        <label class="block text-sm text-slate-400 mb-1">입력 기준</label>
+        <select name="input_mode" class="w-full bg-slate-900 border border-slate-700 rounded p-2">
+            <option value="target_profit">목표 이익 기준</option>
+            <option value="total_stake">총 예산 기준</option>
+        </select>
+    </div>
+
+    <div>
+        <label class="block text-sm text-slate-400 mb-1">금액(원)</label>
+        <input type="number" step="1" name="amount" required class="w-full bg-slate-900 border border-slate-700 rounded p-2" placeholder="예: 10076">
+    </div>
+
+    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded px-4 py-2 font-semibold">계산하기</button>
+</form>
+
+<div id="calc-result"></div>
+
+<script>
+    window.comboLabels = {{ combo_labels | tojson }};
+</script>
+{% endblock %}

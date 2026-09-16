@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}축구 배당 분석{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+    <nav class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex gap-6 items-center">
+        <a href="/" class="font-bold text-lg text-emerald-400">⚽ 배당 분석</a>
+        <a href="/" class="text-slate-300 hover:text-white text-sm">대시보드</a>
+        <a href="/calculator" class="text-slate-300 hover:text-white text-sm">이익균등화 계산기</a>
+    </nav>
+    <main class="max-w-6xl mx-auto p-4">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
