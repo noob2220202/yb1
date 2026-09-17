@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "odds-app",
       script: "python3",
-      args: "-m uvicorn app.main:app --host 0.0.0.0 --port 6666",
+      args: "-m uvicorn app.main:app --host 0.0.0.0 --port 8001",
       cwd: __dirname,
       interpreter: "none",
       autorestart: true,
