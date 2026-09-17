@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.pick import Pick
 from app.services.grading import grade_pick
+from app.services.staking import compute_quality_grade
 from app.services.telegram_client import format_pick_message, format_result_message, send_telegram_message
 
 
@@ -53,6 +54,7 @@ def save_pick(
         implied_hit_rate=implied_hit_rate,
         breakeven_prob=breakeven_prob,
         estimated_ev_pct=estimated_ev_pct,
+        quality_grade=compute_quality_grade(estimated_ev_pct, implied_hit_rate, breakeven_prob),
         status="pending",
     )
     db.add(pick)

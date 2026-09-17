@@ -37,6 +37,7 @@ class Pick(Base):
     implied_hit_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     breakeven_prob: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     estimated_ev_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 3), nullable=True)
+    quality_grade: Mapped[str | None] = mapped_column(String(2), nullable=True)  # S/A/B/C/D, 실제 마켓 확률 없으면 None
 
     status: Mapped[str] = mapped_column(String(20), default="pending", server_default="pending")
     home_score_actual: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-ComboType = Literal["draw_dnb0", "draw_ah05", "ahplus1_margin1"]
+ComboType = Literal["draw_dnb0", "draw_ah05", "draw_ah15", "ahplus1_margin1", "ahplus2_margin2"]
 
 
 class EqualizeRequest(BaseModel):

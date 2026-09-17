@@ -107,6 +107,26 @@
                 {{ num_input("odds_ah1_underdog", form.odds_ah1_underdog, "3.20") }}
             </div>
         </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">정배팀 -1.5 오즈</label>
+                {{ num_input("odds_ah15_favorite", form.odds_ah15_favorite, "2.20") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">역배팀 +1.5 오즈</label>
+                {{ num_input("odds_ah15_underdog", form.odds_ah15_underdog, "1.65") }}
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">정배팀 -2 오즈</label>
+                {{ num_input("odds_ah2_favorite", form.odds_ah2_favorite, "3.40") }}
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">역배팀 +2 오즈</label>
+                {{ num_input("odds_ah2_underdog", form.odds_ah2_underdog, "1.28") }}
+            </div>
+        </div>
     </fieldset>
 
     <fieldset class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">

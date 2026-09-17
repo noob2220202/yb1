@@ -22,8 +22,10 @@ from app.services.devig import calc_ev, consensus_probability, devig_market
 from app.services.staking import (
     STAKING_DISCLAIMER,
     calc_ahplus1_margin1_stakes,
+    calc_ahplus2_margin2_stakes,
     calc_draw_ah05_stakes,
     calc_draw_dnb0_stakes,
+    compute_quality_grade,
     first_leg_stake,
     second_leg_stake,
     target_profit_for_total_stake,
@@ -107,6 +109,22 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
     underdog = "away" if favorite == "home" else "home"
 
     odds_draw, market_draw = best_odds_for_selection(db, fixture.id, "1x2", "draw")
+    # 승리마진 마켓 전체 분포 — 여러 조합의 적중확률 계산에 재사용(단일 마켓 기준으로만
+    # 계산해야 서로 다른 마켓을 섞어서 생기는 100% 초과 버그를 피할 수 있다).
+    margin_probs = consensus_probs_for_market(db, fixture.id, "win_margin")
+
+    def _favorite_margin_ge_prob(min_n: int) -> float:
+        """승리마진 마켓에서 '정배팀이 min_n골차 이상으로 이길' 확률의 합."""
+        prefix = f"{favorite}_by_"
+        total = 0.0
+        for sel, p in margin_probs.items():
+            if not sel.startswith(prefix):
+                continue
+            suffix = sel[len(prefix):]
+            n = 99 if suffix.endswith("plus") else int(suffix) if suffix.isdigit() else None
+            if n is not None and n >= min_n:
+                total += p
+        return total
 
     # --- draw_dnb0: 무승부 + 정배팀 DNB ---
     odds_dnb, market_dnb = best_odds_for_selection(db, fixture.id, "dnb", favorite)
@@ -155,13 +173,38 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
         except ValueError:
             pass
 
-    # --- ahplus1_margin1: 역배팀 AH+1 + 정배�름 정확히 1골차 승 ---
+    # --- draw_ah15: 무승부 + 정배팀 AH-1.5 (push 없음, 2골차+ 승부터 다리 B 적중) ---
+    ah15_line = -1.5 if favorite == "home" else 1.5
+    odds_ah15, market_ah15 = best_odds_for_selection(db, fixture.id, "ah", favorite, ah15_line)
+    ah15_probs = consensus_probs_for_market(db, fixture.id, "ah", ah15_line)
+    if odds_draw and odds_ah15 and favorite in ah15_probs:
+        try:
+            target_profit = target_profit_for_total_stake(calc_draw_ah05_stakes, odds_draw, odds_ah15, total_stake)
+            staking = calc_draw_ah05_stakes(odds_draw, odds_ah15, target_profit)
+            # AH-0.5와 달리 AH-1.5는 정배 1골차 승으로는 적중하지 않으므로, 1X2 마켓만으로는
+            # 정확한 적중확률을 못 구한다 — 승리마진 마켓 하나의 분포로만 계산한다.
+            implied_hit_rate = margin_probs.get("draw", 0.0) + _favorite_margin_ge_prob(2)
+            ev_pct = _combo_ev_pct(
+                staking["stake_draw"], odds_draw, probs_1x2["draw"],
+                staking["stake_ah05"], odds_ah15, ah15_probs[favorite],
+            )
+            candidates.append(_build_candidate(
+                combo_type="draw_ah15",
+                description=f"무승부 + {'홈팀' if favorite == 'home' else '원정팀'} AH-1.5",
+                leg_a_market=market_draw, leg_a_selection="draw", odds_leg_a=odds_draw,
+                leg_b_market=market_ah15, leg_b_selection=favorite, odds_leg_b=odds_ah15,
+                favorite_side=favorite,
+                staking=staking, implied_hit_rate=implied_hit_rate, ev_pct=ev_pct,
+            ))
+        except ValueError:
+            pass
+
+    # --- ahplus1_margin1: 역배팀 AH+1 + 정배팀 정확히 1골차 승 ---
     ahplus1_line = -1.0 if favorite == "home" else 1.0
     odds_ahplus1, market_ahplus1 = best_odds_for_selection(db, fixture.id, "ah", underdog, ahplus1_line)
     ahplus1_probs = consensus_probs_for_market(db, fixture.id, "ah", ahplus1_line)
     margin1_selection = f"{favorite}_by_1"
     odds_margin1, market_margin1 = best_odds_for_selection(db, fixture.id, "win_margin", margin1_selection)
-    margin_probs = consensus_probs_for_market(db, fixture.id, "win_margin")
     if odds_ahplus1 and odds_margin1 and underdog in ahplus1_probs and margin1_selection in margin_probs:
         try:
             target_profit = target_profit_for_total_stake(
@@ -173,12 +216,7 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
             # 북메이커 마진이 섞이기 때문). 대신 승리마진 마켓 하나의 분포만으로 계산한다
             # ("정배 2골차+ 승" 버킷들의 합을 1에서 빼는 방식) — 이 분포는 항상 합이 1이 되도록
             # devig되어 있으므로 100%를 넘을 수 없다.
-            favorite_prefix = f"{favorite}_by_"
-            favorite_margin2plus_prob = sum(
-                p for sel, p in margin_probs.items()
-                if sel.startswith(favorite_prefix) and sel != margin1_selection
-            )
-            implied_hit_rate = max(0.0, 1 - favorite_margin2plus_prob)
+            implied_hit_rate = max(0.0, 1 - _favorite_margin_ge_prob(2))
             ev_pct = _combo_ev_pct(
                 staking["stake_ahplus1"], odds_ahplus1, ahplus1_probs[underdog],
                 staking["stake_margin1"], odds_margin1, margin_probs[margin1_selection],
@@ -188,6 +226,36 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
                 description=f"{'원정팀' if favorite == 'home' else '홈팀'} AH+1 + {'홈팀' if favorite == 'home' else '원정팀'} 정확히 1골차 승",
                 leg_a_market=market_ahplus1, leg_a_selection=underdog, odds_leg_a=odds_ahplus1,
                 leg_b_market=market_margin1, leg_b_selection=margin1_selection, odds_leg_b=odds_margin1,
+                favorite_side=favorite,
+                staking=staking, implied_hit_rate=implied_hit_rate, ev_pct=ev_pct,
+            ))
+        except ValueError:
+            pass
+
+    # --- ahplus2_margin2: 역배팀 AH+2 + 정배팀 정확히 2골차 승 ---
+    ahplus2_line = -2.0 if favorite == "home" else 2.0
+    odds_ahplus2, market_ahplus2 = best_odds_for_selection(db, fixture.id, "ah", underdog, ahplus2_line)
+    ahplus2_probs = consensus_probs_for_market(db, fixture.id, "ah", ahplus2_line)
+    margin2_selection = f"{favorite}_by_2"
+    odds_margin2, market_margin2 = best_odds_for_selection(db, fixture.id, "win_margin", margin2_selection)
+    if odds_ahplus2 and odds_margin2 and underdog in ahplus2_probs and margin2_selection in margin_probs:
+        try:
+            target_profit = target_profit_for_total_stake(
+                calc_ahplus2_margin2_stakes, odds_ahplus2, odds_margin2, total_stake
+            )
+            staking = calc_ahplus2_margin2_stakes(odds_ahplus2, odds_margin2, target_profit)
+            # 이익 시나리오 = 정배 1골차 이하(마진<=1) 또는 정배 정확히 2골차 승.
+            # 승리마진 마켓 하나의 분포로만 계산(마켓간 불일치로 100% 초과하는 문제 방지).
+            implied_hit_rate = max(0.0, 1 - _favorite_margin_ge_prob(3))
+            ev_pct = _combo_ev_pct(
+                staking["stake_ahplus2"], odds_ahplus2, ahplus2_probs[underdog],
+                staking["stake_margin2"], odds_margin2, margin_probs[margin2_selection],
+            )
+            candidates.append(_build_candidate(
+                combo_type="ahplus2_margin2",
+                description=f"{'원정팀' if favorite == 'home' else '홈팀'} AH+2 + {'홈팀' if favorite == 'home' else '원정팀'} 정확히 2골차 승",
+                leg_a_market=market_ahplus2, leg_a_selection=underdog, odds_leg_a=odds_ahplus2,
+                leg_b_market=market_margin2, leg_b_selection=margin2_selection, odds_leg_b=odds_margin2,
                 favorite_side=favorite,
                 staking=staking, implied_hit_rate=implied_hit_rate, ev_pct=ev_pct,
             ))
@@ -219,6 +287,7 @@ def _build_candidate(
         "breakeven_prob": staking["breakeven_prob"],
         "estimated_ev_pct": ev_pct,
         "ev_negative": ev_pct < 0,
+        "quality_grade": compute_quality_grade(ev_pct, implied_hit_rate, staking["breakeven_prob"]),
         "stake_leg_a": first_leg_stake(staking),
         "stake_leg_b": second_leg_stake(staking),
         "total_stake": staking["total_stake"],

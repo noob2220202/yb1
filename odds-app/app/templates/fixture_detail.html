@@ -35,11 +35,23 @@
     <div class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
         <div class="flex items-center justify-between">
             <h3 class="font-semibold text-emerald-400">{{ c.description }}</h3>
-            {% if c.ev_negative %}
-            <span class="bg-red-900 text-red-200 text-xs px-2 py-1 rounded">⚠ 마이너스 EV</span>
-            {% else %}
-            <span class="bg-emerald-900 text-emerald-200 text-xs px-2 py-1 rounded">+EV</span>
-            {% endif %}
+            <div class="flex items-center gap-2">
+                {% if c.quality_grade %}
+                <span class="text-xs px-2 py-1 rounded font-bold
+                    {% if c.quality_grade == 'S' %}bg-purple-900 text-purple-200
+                    {% elif c.quality_grade == 'A' %}bg-emerald-900 text-emerald-200
+                    {% elif c.quality_grade == 'B' %}bg-sky-900 text-sky-200
+                    {% elif c.quality_grade == 'C' %}bg-amber-900 text-amber-200
+                    {% else %}bg-red-900 text-red-200{% endif %}">
+                    {{ quality_grade_labels.get(c.quality_grade, c.quality_grade) }}
+                </span>
+                {% endif %}
+                {% if c.ev_negative %}
+                <span class="bg-red-900 text-red-200 text-xs px-2 py-1 rounded">⚠ 마이너스 EV</span>
+                {% else %}
+                <span class="bg-emerald-900 text-emerald-200 text-xs px-2 py-1 rounded">+EV</span>
+                {% endif %}
+            </div>
         </div>
 
         <div class="grid grid-cols-3 gap-2 text-sm">

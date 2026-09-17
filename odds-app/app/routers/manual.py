@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
+from starlette.datastructures import FormData
 
 from app.db import get_db
 from app.models.fixture import Fixture
@@ -17,6 +18,17 @@ from app.templating import templates
 
 router = APIRouter()
 
+_OPTIONAL_ODDS_FIELDS = [
+    "odds_dnb_home", "odds_dnb_away",
+    "odds_ah05_favorite", "odds_ah05_underdog",
+    "odds_ah1_favorite", "odds_ah1_underdog",
+    "odds_ah15_favorite", "odds_ah15_underdog",
+    "odds_ah2_favorite", "odds_ah2_underdog",
+    "margin_home_by1", "margin_home_by2", "margin_home_by3", "margin_home_by4plus",
+    "margin_draw",
+    "margin_away_by1", "margin_away_by2", "margin_away_by3", "margin_away_by4plus",
+]
+
 
 def _to_float(value: str | None) -> float | None:
     """빈 문자열(폼에서 비워둔 선택 입력 필드)을 None으로 취급해 파싱한다."""
@@ -26,42 +38,19 @@ def _to_float(value: str | None) -> float | None:
 
 
 def _empty_form_data() -> dict:
-    return {
-        "odds_1x2_home": None, "odds_1x2_draw": None, "odds_1x2_away": None,
-        "odds_dnb_home": None, "odds_dnb_away": None,
-        "favorite_team": "home",
-        "odds_ah05_favorite": None, "odds_ah05_underdog": None,
-        "odds_ah1_favorite": None, "odds_ah1_underdog": None,
-        "margin_home_by1": None, "margin_home_by2": None, "margin_home_by3": None, "margin_home_by4plus": None,
-        "margin_draw": None,
-        "margin_away_by1": None, "margin_away_by2": None, "margin_away_by3": None, "margin_away_by4plus": None,
-    }
+    data = {k: None for k in _OPTIONAL_ODDS_FIELDS}
+    data.update({"odds_1x2_home": None, "odds_1x2_draw": None, "odds_1x2_away": None, "favorite_team": "home"})
+    return data
 
 
-def _build_manual_odds_input(
-    *,
-    odds_1x2_home: float, odds_1x2_draw: float, odds_1x2_away: float,
-    odds_dnb_home: str | None, odds_dnb_away: str | None,
-    favorite_team: str | None,
-    odds_ah05_favorite: str | None, odds_ah05_underdog: str | None,
-    odds_ah1_favorite: str | None, odds_ah1_underdog: str | None,
-    margin_home_by1: str | None, margin_home_by2: str | None,
-    margin_home_by3: str | None, margin_home_by4plus: str | None,
-    margin_draw: str | None,
-    margin_away_by1: str | None, margin_away_by2: str | None,
-    margin_away_by3: str | None, margin_away_by4plus: str | None,
-) -> ManualOddsInput:
+def _parse_manual_odds_input(form: FormData) -> ManualOddsInput:
+    kwargs = {field: _to_float(form.get(field)) for field in _OPTIONAL_ODDS_FIELDS}
     return ManualOddsInput(
-        odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-        odds_dnb_home=_to_float(odds_dnb_home), odds_dnb_away=_to_float(odds_dnb_away),
-        favorite_team=favorite_team,
-        odds_ah05_favorite=_to_float(odds_ah05_favorite), odds_ah05_underdog=_to_float(odds_ah05_underdog),
-        odds_ah1_favorite=_to_float(odds_ah1_favorite), odds_ah1_underdog=_to_float(odds_ah1_underdog),
-        margin_home_by1=_to_float(margin_home_by1), margin_home_by2=_to_float(margin_home_by2),
-        margin_home_by3=_to_float(margin_home_by3), margin_home_by4plus=_to_float(margin_home_by4plus),
-        margin_draw=_to_float(margin_draw),
-        margin_away_by1=_to_float(margin_away_by1), margin_away_by2=_to_float(margin_away_by2),
-        margin_away_by3=_to_float(margin_away_by3), margin_away_by4plus=_to_float(margin_away_by4plus),
+        odds_1x2_home=float(form["odds_1x2_home"]),
+        odds_1x2_draw=float(form["odds_1x2_draw"]),
+        odds_1x2_away=float(form["odds_1x2_away"]),
+        favorite_team=form.get("favorite_team"),
+        **kwargs,
     )
 
 
@@ -86,59 +75,24 @@ def manual_new_form(request: Request):
 
 
 @router.post("/manual/new", response_class=HTMLResponse)
-def manual_new_submit(
-    request: Request,
-    db: Session = Depends(get_db),
-    home_team: str = Form(...),
-    away_team: str = Form(...),
-    league_name: str = Form(""),
-    kickoff_utc: str = Form(...),
-    odds_1x2_home: float = Form(...),
-    odds_1x2_draw: float = Form(...),
-    odds_1x2_away: float = Form(...),
-    odds_dnb_home: str | None = Form(None),
-    odds_dnb_away: str | None = Form(None),
-    favorite_team: str | None = Form(None),
-    odds_ah05_favorite: str | None = Form(None),
-    odds_ah05_underdog: str | None = Form(None),
-    odds_ah1_favorite: str | None = Form(None),
-    odds_ah1_underdog: str | None = Form(None),
-    margin_home_by1: str | None = Form(None),
-    margin_home_by2: str | None = Form(None),
-    margin_home_by3: str | None = Form(None),
-    margin_home_by4plus: str | None = Form(None),
-    margin_draw: str | None = Form(None),
-    margin_away_by1: str | None = Form(None),
-    margin_away_by2: str | None = Form(None),
-    margin_away_by3: str | None = Form(None),
-    margin_away_by4plus: str | None = Form(None),
-):
+async def manual_new_submit(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    home_team = form["home_team"]
+    away_team = form["away_team"]
+    league_name = form.get("league_name", "")
+
     try:
-        kickoff = datetime.fromisoformat(kickoff_utc)
-    except ValueError:
+        kickoff = datetime.fromisoformat(form["kickoff_utc"])
+        odds_data = _parse_manual_odds_input(form)
+    except (ValueError, KeyError):
         return templates.TemplateResponse(
             request,
             "manual_form.html",
-            {"fixture": None, "form": _empty_form_data(), "error": "킥오프 일시 형식이 올바르지 않습니다"},
+            {"fixture": None, "form": _empty_form_data(), "error": "입력값을 확인해주세요 (필수 항목 누락 또는 형식 오류)"},
         )
 
     fixture = create_manual_fixture(db, home_team, away_team, league_name, kickoff)
-    save_manual_odds(
-        db,
-        fixture.id,
-        _build_manual_odds_input(
-            odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-            odds_dnb_home=odds_dnb_home, odds_dnb_away=odds_dnb_away,
-            favorite_team=favorite_team,
-            odds_ah05_favorite=odds_ah05_favorite, odds_ah05_underdog=odds_ah05_underdog,
-            odds_ah1_favorite=odds_ah1_favorite, odds_ah1_underdog=odds_ah1_underdog,
-            margin_home_by1=margin_home_by1, margin_home_by2=margin_home_by2,
-            margin_home_by3=margin_home_by3, margin_home_by4plus=margin_home_by4plus,
-            margin_draw=margin_draw,
-            margin_away_by1=margin_away_by1, margin_away_by2=margin_away_by2,
-            margin_away_by3=margin_away_by3, margin_away_by4plus=margin_away_by4plus,
-        ),
-    )
+    save_manual_odds(db, fixture.id, odds_data)
     return RedirectResponse(url=f"/fixtures/{fixture.id}", status_code=303)
 
 
@@ -155,65 +109,29 @@ def manual_edit_form(fixture_id: int, request: Request, db: Session = Depends(ge
 
 
 @router.post("/manual/{fixture_id}/edit", response_class=HTMLResponse)
-def manual_edit_submit(
-    fixture_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    home_team: str = Form(...),
-    away_team: str = Form(...),
-    league_name: str = Form(""),
-    kickoff_utc: str = Form(...),
-    odds_1x2_home: float = Form(...),
-    odds_1x2_draw: float = Form(...),
-    odds_1x2_away: float = Form(...),
-    odds_dnb_home: str | None = Form(None),
-    odds_dnb_away: str | None = Form(None),
-    favorite_team: str | None = Form(None),
-    odds_ah05_favorite: str | None = Form(None),
-    odds_ah05_underdog: str | None = Form(None),
-    odds_ah1_favorite: str | None = Form(None),
-    odds_ah1_underdog: str | None = Form(None),
-    margin_home_by1: str | None = Form(None),
-    margin_home_by2: str | None = Form(None),
-    margin_home_by3: str | None = Form(None),
-    margin_home_by4plus: str | None = Form(None),
-    margin_draw: str | None = Form(None),
-    margin_away_by1: str | None = Form(None),
-    margin_away_by2: str | None = Form(None),
-    margin_away_by3: str | None = Form(None),
-    margin_away_by4plus: str | None = Form(None),
-):
+async def manual_edit_submit(fixture_id: int, request: Request, db: Session = Depends(get_db)):
     fixture = db.query(Fixture).filter(Fixture.id == fixture_id, Fixture.source == "manual").one_or_none()
     if fixture is None:
         raise HTTPException(status_code=404, detail="수동 입력 경기를 찾을 수 없습니다")
 
+    form = await request.form()
+    home_team = form["home_team"]
+    away_team = form["away_team"]
+    league_name = form.get("league_name", "")
+
     try:
-        kickoff = datetime.fromisoformat(kickoff_utc)
-    except ValueError:
+        kickoff = datetime.fromisoformat(form["kickoff_utc"])
+        odds_data = _parse_manual_odds_input(form)
+    except (ValueError, KeyError):
         form_data = load_manual_form_data(db, fixture_id)
         return templates.TemplateResponse(
             request,
             "manual_form.html",
-            {"fixture": fixture, "form": form_data, "error": "킥오프 일시 형식이 올바르지 않습니다"},
+            {"fixture": fixture, "form": form_data, "error": "입력값을 확인해주세요 (필수 항목 누락 또는 형식 오류)"},
         )
 
     update_manual_fixture_info(fixture, home_team, away_team, league_name, kickoff)
-    save_manual_odds(
-        db,
-        fixture.id,
-        _build_manual_odds_input(
-            odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-            odds_dnb_home=odds_dnb_home, odds_dnb_away=odds_dnb_away,
-            favorite_team=favorite_team,
-            odds_ah05_favorite=odds_ah05_favorite, odds_ah05_underdog=odds_ah05_underdog,
-            odds_ah1_favorite=odds_ah1_favorite, odds_ah1_underdog=odds_ah1_underdog,
-            margin_home_by1=margin_home_by1, margin_home_by2=margin_home_by2,
-            margin_home_by3=margin_home_by3, margin_home_by4plus=margin_home_by4plus,
-            margin_draw=margin_draw,
-            margin_away_by1=margin_away_by1, margin_away_by2=margin_away_by2,
-            margin_away_by3=margin_away_by3, margin_away_by4plus=margin_away_by4plus,
-        ),
-    )
+    save_manual_odds(db, fixture.id, odds_data)
     return RedirectResponse(url=f"/fixtures/{fixture.id}", status_code=303)
 
 

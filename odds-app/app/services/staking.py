@@ -20,6 +20,9 @@ SCENARIO_LABELS_KO = {
     "underdog_win_or_draw": "역배승 또는 무승부",
     "favorite_margin1": "정배 1골차 승",
     "favorite_margin2plus": "정배 2골차+ 승 (양쪽 다리 실패)",
+    "underdog_draw_or_margin1": "역배승/무승부/정배 1골차 승",
+    "favorite_margin2": "정배 2골차 승",
+    "favorite_margin3plus": "정배 3골차+ 승 (양쪽 다리 실패)",
 }
 
 LEG_RESULT_LABELS_KO = {
@@ -31,8 +34,49 @@ LEG_RESULT_LABELS_KO = {
 COMBO_TYPE_LABELS_KO = {
     "draw_dnb0": "무승부 + 정배팀 DNB(AH0)",
     "draw_ah05": "무승부 + 정배팀 AH-0.5",
+    "draw_ah15": "무승부 + 정배팀 AH-1.5",
     "ahplus1_margin1": "역배팀 AH+1 + 정배팀 정확히 1골차 승",
+    "ahplus2_margin2": "역배팀 AH+2 + 정배팀 정확히 2골차 승",
 }
+
+QUALITY_GRADE_LABELS_KO = {
+    "S": "S (최우수)",
+    "A": "A (우수)",
+    "B": "B (보통)",
+    "C": "C (주의)",
+    "D": "D (비추천)",
+}
+
+
+def compute_quality_grade(
+    estimated_ev_pct: float | None, implied_hit_rate: float | None, breakeven_prob: float | None
+) -> str | None:
+    """조합의 사전 품질 등급(S/A/B/C/D)을 매긴다.
+
+    두 가지 객관적 지표를 더한다:
+    - 추정 EV%: 베팅의 기대 수익성 자체.
+    - 여유분(margin, %p): (적중확률 추정 - 손익분기확률). 확률 추정이 다소
+      부정확해도 버틸 수 있는 안전 마진을 뜻한다.
+
+    devig 기반 실제 확률(implied_hit_rate/estimated_ev_pct)이 없는 픽
+    (계산기에서 오즈만 넣고 저장한 경우 등)은 등급을 매길 근거가 없으므로
+    None을 반환한다.
+    """
+    if estimated_ev_pct is None or implied_hit_rate is None or breakeven_prob is None:
+        return None
+
+    margin_pct = (implied_hit_rate - breakeven_prob) * 100
+    score = estimated_ev_pct + margin_pct
+
+    if score >= 8:
+        return "S"
+    if score >= 3:
+        return "A"
+    if score >= 0:
+        return "B"
+    if score >= -5:
+        return "C"
+    return "D"
 
 
 def equal_profit_stakes(odds_list: list[float], total_stake: float) -> list[float]:
@@ -200,10 +244,67 @@ def calc_ahplus1_margin1_stakes(odds_ahplus1: float, odds_margin1: float, target
     }
 
 
+def calc_ahplus2_margin2_stakes(odds_ahplus2: float, odds_margin2: float, target_profit: float) -> dict:
+    """조합: 역배팀 AH+2(A) + 정배팀 정확히 2골차 승(B). ahplus1_margin1과 같은 구조를
+    한 골 더 넓힌 버전 — AH+2는 정배 1골차승까지도 커버하므로 이익 시나리오 폭이 더 넓다.
+
+    - 역배승/무승부/정배 1골차승: A 적중(마진<=1은 모두 AH+2가 커버), B 실패 → 순이익 = target_profit
+    - 정배 2골차승: A push(환급), B 적중 → 순이익 = target_profit
+    - 정배 3골차+승: A, B 모두 실패 → 손실 = -(stake_A + stake_B)
+    """
+    if odds_ahplus2 <= 1 or odds_margin2 <= 1:
+        raise ValueError("오즈는 1보다 커야 합니다")
+    if target_profit <= 0:
+        raise ValueError("target_profit은 0보다 커야 합니다")
+
+    stake_margin2 = target_profit / (odds_margin2 - 1)
+    stake_ahplus2 = (target_profit + stake_margin2) / (odds_ahplus2 - 1)
+    total_stake = stake_ahplus2 + stake_margin2
+
+    profit_underdog_draw_or_margin1 = stake_ahplus2 * (odds_ahplus2 - 1) - stake_margin2
+    profit_fav_margin2 = stake_margin2 * (odds_margin2 - 1)
+    loss_fav_margin3plus = -(stake_ahplus2 + stake_margin2)
+
+    breakeven_prob = _breakeven_prob(
+        [profit_underdog_draw_or_margin1, profit_fav_margin2], total_stake
+    )
+
+    return {
+        "combo_type": "ahplus2_margin2",
+        "stake_ahplus2": stake_ahplus2,
+        "stake_margin2": stake_margin2,
+        "total_stake": total_stake,
+        "target_profit": target_profit,
+        "profit_underdog_draw_or_margin1": profit_underdog_draw_or_margin1,
+        "profit_fav_margin2": profit_fav_margin2,
+        "loss_fav_margin3plus": loss_fav_margin3plus,
+        "breakeven_prob": breakeven_prob,
+        "all_scenarios": {
+            "underdog_draw_or_margin1": {
+                "leg_a": "win",
+                "leg_b": "lose",
+                "net_profit": profit_underdog_draw_or_margin1,
+            },
+            "favorite_margin2": {
+                "leg_a": "push",
+                "leg_b": "win",
+                "net_profit": profit_fav_margin2,
+            },
+            "favorite_margin3plus": {
+                "leg_a": "lose",
+                "leg_b": "lose",
+                "net_profit": loss_fav_margin3plus,
+            },
+        },
+    }
+
+
 COMBO_CALCULATORS = {
     "draw_dnb0": calc_draw_dnb0_stakes,
     "draw_ah05": calc_draw_ah05_stakes,
+    "draw_ah15": calc_draw_ah05_stakes,  # 수식은 라인 값과 무관하게 동일하게 성립
     "ahplus1_margin1": calc_ahplus1_margin1_stakes,
+    "ahplus2_margin2": calc_ahplus2_margin2_stakes,
 }
 
 

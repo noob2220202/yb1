@@ -5,6 +5,7 @@ import pytest
 from app.services.staking import (
     STAKING_DISCLAIMER,
     calc_ahplus1_margin1_stakes,
+    calc_ahplus2_margin2_stakes,
     calc_draw_ah05_stakes,
     calc_draw_dnb0_stakes,
     equal_profit_stakes,
@@ -98,3 +99,24 @@ def test_ahplus1_margin1_regression_from_spec():
 def test_disclaimer_constant_present():
     assert "손익 분산" in STAKING_DISCLAIMER
     assert "기대값을 개선하지 않습니다" in STAKING_DISCLAIMER
+
+
+def test_ahplus2_margin2_scenario_math():
+    """ahplus1_margin1과 같은 원리로 한 골 넓힌 버전 — 두 이익 시나리오 모두
+    정확히 target_profit과 일치해야 하고, 3골차+만 손실이어야 한다."""
+    result = calc_ahplus2_margin2_stakes(odds_ahplus2=1.50, odds_margin2=4.5, target_profit=5000)
+
+    assert math.isclose(result["profit_underdog_draw_or_margin1"], 5000, rel_tol=1e-9)
+    assert math.isclose(result["profit_fav_margin2"], 5000, rel_tol=1e-9)
+    assert result["loss_fav_margin3plus"] < 0
+    assert 0 < result["breakeven_prob"] < 1
+    assert set(result["all_scenarios"].keys()) == {
+        "underdog_draw_or_margin1",
+        "favorite_margin2",
+        "favorite_margin3plus",
+    }
+
+    # 시나리오별 leg 결과 라벨이 push/win/lose 규칙과 일치하는지 확인
+    assert result["all_scenarios"]["underdog_draw_or_margin1"]["leg_a"] == "win"
+    assert result["all_scenarios"]["favorite_margin2"]["leg_a"] == "push"
+    assert result["all_scenarios"]["favorite_margin3plus"]["leg_a"] == "lose"

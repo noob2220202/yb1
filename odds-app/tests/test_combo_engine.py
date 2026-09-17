@@ -76,6 +76,34 @@ def test_generate_combo_candidates_full_data(db_session):
     assert margin_candidate["leg_b_selection"] == "home_by_1"
 
 
+def test_generate_combo_candidates_with_wider_handicap_lines(db_session):
+    """AH-1.5/AH+2 라인과 승리마진 2골차 오즈까지 있으면 draw_ah15/ahplus2_margin2도
+    생성되고, 적중확률이 항상 [0,1] 범위여야 한다."""
+    fixture = _build_fixture(db_session)
+    _seed_full_market_data(db_session, fixture)
+    _add_market(db_session, fixture.id, "ah", Decimal("-1.5"), "TestBook", {"home": 2.20, "away": 1.65})
+    _add_market(db_session, fixture.id, "ah", Decimal("-2.0"), "TestBook", {"home": 3.40, "away": 1.28})
+    db_session.commit()
+
+    candidates = generate_combo_candidates(db_session, fixture, total_stake=30000)
+    combo_types = {c["combo_type"] for c in candidates}
+    assert combo_types == {"draw_dnb0", "draw_ah05", "draw_ah15", "ahplus1_margin1", "ahplus2_margin2"}
+
+    for c in candidates:
+        assert 0.0 <= c["implied_hit_rate"] <= 1.0
+
+    ah15_candidate = next(c for c in candidates if c["combo_type"] == "draw_ah15")
+    assert ah15_candidate["leg_b_selection"] == "home"
+
+    margin2_candidate = next(c for c in candidates if c["combo_type"] == "ahplus2_margin2")
+    assert margin2_candidate["leg_a_selection"] == "away"
+    assert margin2_candidate["leg_b_selection"] == "home_by_2"
+    # AH+2/정확히 2골차 조합은 AH+1/1골차 조합보다 이익 시나리오가 넓으므로
+    # 적중확률도 최소한 더 낮지는 않아야 한다(직관적 정합성 체크)
+    margin1_candidate = next(c for c in candidates if c["combo_type"] == "ahplus1_margin1")
+    assert margin2_candidate["implied_hit_rate"] >= margin1_candidate["implied_hit_rate"] - 1e-9
+
+
 def test_implied_hit_rate_never_exceeds_one_even_with_inconsistent_markets(db_session):
     """회귀 테스트: 1X2 마켓과 승리마진 마켓을 각각 독립적으로 devig해서 더하면
     100%를 넘는 경우가 실제로 있었다(사용자가 수동입력에서 재현: 109.5%).

@@ -3,7 +3,11 @@ from decimal import Decimal
 
 from app.models.pick import Pick
 from app.services.grading import determine_scenario, grade_pick
-from app.services.staking import calc_ahplus1_margin1_stakes, calc_draw_dnb0_stakes
+from app.services.staking import (
+    calc_ahplus1_margin1_stakes,
+    calc_ahplus2_margin2_stakes,
+    calc_draw_dnb0_stakes,
+)
 
 
 def _make_pick(**overrides) -> Pick:
@@ -90,3 +94,42 @@ def test_grade_pick_ahplus1_margin1():
     assert margin2plus["scenario"] == "favorite_margin2plus"
     assert margin2plus["net_profit"] < 0
     assert math.isclose(margin2plus["net_profit"], expected["loss_fav_margin2plus"], rel_tol=1e-9)
+
+
+def test_draw_ah15_requires_two_goal_margin_for_home_win():
+    """AH-1.5는 1골차 승으로는 다리 B가 적중하지 않는다 — draw_ah05(margin>=1)와
+    달리 margin>=2가 필요하다. 이 차이를 놓치면 1골차 승을 잘못 '적중'으로
+    채점하는 버그가 생긴다."""
+    pick = _make_pick(combo_type="draw_ah15", favorite_side="home")
+
+    assert determine_scenario(pick, 1, 1) == "draw"
+    assert determine_scenario(pick, 1, 0) == "away_win"  # 1골차 승 — AH-1.5는 실패
+    assert determine_scenario(pick, 2, 0) == "home_win"  # 2골차 승 — AH-1.5 적중
+    assert determine_scenario(pick, 3, 0) == "home_win"
+
+
+def test_grade_pick_ahplus2_margin2():
+    pick = _make_pick(
+        combo_type="ahplus2_margin2",
+        leg_a_selection="away",
+        leg_b_selection="home_by_2",
+        favorite_side="home",
+        odds_leg_a=Decimal("1.50"), odds_leg_b=Decimal("4.5"),
+        target_profit=Decimal("5000"),
+    )
+    expected = calc_ahplus2_margin2_stakes(1.50, 4.5, 5000)
+
+    underdog_draw_or_margin1 = grade_pick(pick, 2, 1)  # 정배 1골차 — AH+2가 커버
+    assert underdog_draw_or_margin1["scenario"] == "underdog_draw_or_margin1"
+    assert math.isclose(
+        underdog_draw_or_margin1["net_profit"], expected["profit_underdog_draw_or_margin1"], rel_tol=1e-9
+    )
+
+    margin2 = grade_pick(pick, 3, 1)  # 정배 정확히 2골차
+    assert margin2["scenario"] == "favorite_margin2"
+    assert math.isclose(margin2["net_profit"], expected["profit_fav_margin2"], rel_tol=1e-9)
+
+    margin3plus = grade_pick(pick, 4, 0)  # 정배 3골차+
+    assert margin3plus["scenario"] == "favorite_margin3plus"
+    assert margin3plus["net_profit"] < 0
+    assert math.isclose(margin3plus["net_profit"], expected["loss_fav_margin3plus"], rel_tol=1e-9)

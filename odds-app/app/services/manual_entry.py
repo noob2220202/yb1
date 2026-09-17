@@ -5,12 +5,12 @@ API 키 없이도 사용자가 직접 마켓 오즈를 입력해 combo_engine을
 
 - 1X2 (필수)
 - 무승부무효(DNB)
-- 아시안 핸디캡 -0.5/+0.5
-- 아시안 핸디캡 -1/+1
+- 아시안 핸디캡 -0.5/+0.5, -1/+1, -1.5/+1.5, -2/+2 (draw_ah05/draw_ah15/
+  ahplus1_margin1/ahplus2_margin2 조합에 각각 대응)
 - 승리마진(홈/원정 각각 1골차·2골차·3골차·4골차+ + 무승부) — 9구간 합이
   전체 확률 공간을 이루도록 해 devig 정확도를 확보한다. 구간을 세분화할수록
-  "정배 1골차 승"(ahplus1_margin1 조합이 실제로 쓰는 값) 대비 나머지 구간의
-  확률이 정확해져 적중확률 추정치가 더 신뢰할 수 있어진다.
+  "정배 1/2골차 승"(ahplus1_margin1/ahplus2_margin2 조합이 실제로 쓰는 값)
+  대비 나머지 구간의 확률이 정확해져 적중확률 추정치가 더 신뢰할 수 있어진다.
 
 핸디캡 라인은 "어느 팀이 정배(마이너스 라인)인지"에 따라 부호가 달라지므로,
 두 핸디캡 마켓 모두 공통 `favorite_team`(홈/원정) 값을 기준으로 저장한다
@@ -48,6 +48,10 @@ class ManualOddsInput:
     odds_ah05_underdog: float | None = None
     odds_ah1_favorite: float | None = None
     odds_ah1_underdog: float | None = None
+    odds_ah15_favorite: float | None = None
+    odds_ah15_underdog: float | None = None
+    odds_ah2_favorite: float | None = None
+    odds_ah2_underdog: float | None = None
     margin_home_by1: float | None = None
     margin_home_by2: float | None = None
     margin_home_by3: float | None = None
@@ -136,6 +140,16 @@ def save_manual_odds(db: Session, fixture_id: int, data: ManualOddsInput) -> Non
             db, fixture_id, "ah", line_1,
             {favorite: data.odds_ah1_favorite, underdog: data.odds_ah1_underdog},
         )
+        line_15 = Decimal("-1.5") if favorite == "home" else Decimal("1.5")
+        _add_market(
+            db, fixture_id, "ah", line_15,
+            {favorite: data.odds_ah15_favorite, underdog: data.odds_ah15_underdog},
+        )
+        line_2 = Decimal("-2") if favorite == "home" else Decimal("2")
+        _add_market(
+            db, fixture_id, "ah", line_2,
+            {favorite: data.odds_ah2_favorite, underdog: data.odds_ah2_underdog},
+        )
 
     _add_market(
         db, fixture_id, "win_margin", None,
@@ -163,6 +177,8 @@ def load_manual_form_data(db: Session, fixture_id: int) -> dict:
         "favorite_team": "home",
         "odds_ah05_favorite": None, "odds_ah05_underdog": None,
         "odds_ah1_favorite": None, "odds_ah1_underdog": None,
+        "odds_ah15_favorite": None, "odds_ah15_underdog": None,
+        "odds_ah2_favorite": None, "odds_ah2_underdog": None,
         "margin_home_by1": None, "margin_home_by2": None, "margin_home_by3": None, "margin_home_by4plus": None,
         "margin_draw": None,
         "margin_away_by1": None, "margin_away_by2": None, "margin_away_by3": None, "margin_away_by4plus": None,
@@ -197,6 +213,18 @@ def load_manual_form_data(db: Session, fixture_id: int) -> dict:
                 result["favorite_team"] = favorite
                 result["odds_ah1_favorite"] = by_sel.get(favorite)
                 result["odds_ah1_underdog"] = by_sel.get(underdog)
+            elif line in (-1.5, 1.5):
+                favorite = "home" if line == -1.5 else "away"
+                underdog = "away" if favorite == "home" else "home"
+                result["favorite_team"] = favorite
+                result["odds_ah15_favorite"] = by_sel.get(favorite)
+                result["odds_ah15_underdog"] = by_sel.get(underdog)
+            elif line in (-2.0, 2.0):
+                favorite = "home" if line == -2.0 else "away"
+                underdog = "away" if favorite == "home" else "home"
+                result["favorite_team"] = favorite
+                result["odds_ah2_favorite"] = by_sel.get(favorite)
+                result["odds_ah2_underdog"] = by_sel.get(underdog)
         elif m.market_type == "win_margin":
             result["margin_home_by1"] = by_sel.get("home_by_1")
             result["margin_home_by2"] = by_sel.get("home_by_2")

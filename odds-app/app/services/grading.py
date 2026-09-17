@@ -23,9 +23,17 @@ def determine_scenario(pick: Pick, home_score: int, away_score: int) -> str:
     margin = _margin_for(pick.favorite_side, home_score, away_score)
 
     if pick.combo_type in ("draw_dnb0", "draw_ah05"):
+        # DNB/AH-0.5는 정배팀이 "1골차 이상"만 이기면 다리 B가 적중한다.
         if home_score == away_score:
             return "draw"
-        return "home_win" if margin > 0 else "away_win"
+        return "home_win" if margin >= 1 else "away_win"
+
+    if pick.combo_type == "draw_ah15":
+        # AH-1.5는 정배팀이 "2골차 이상" 이겨야 다리 B가 적중한다(1골차 승은
+        # 핸디캡을 못 넘겨 다리 B도 실패 — away_win과 동일한 손실로 묶인다).
+        if home_score == away_score:
+            return "draw"
+        return "home_win" if margin >= 2 else "away_win"
 
     if pick.combo_type == "ahplus1_margin1":
         if margin <= 0:
@@ -33,6 +41,13 @@ def determine_scenario(pick: Pick, home_score: int, away_score: int) -> str:
         if margin == 1:
             return "favorite_margin1"
         return "favorite_margin2plus"
+
+    if pick.combo_type == "ahplus2_margin2":
+        if margin <= 1:
+            return "underdog_draw_or_margin1"
+        if margin == 2:
+            return "favorite_margin2"
+        return "favorite_margin3plus"
 
     raise ValueError(f"알 수 없는 combo_type: {pick.combo_type}")
 

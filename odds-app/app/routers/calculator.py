@@ -19,10 +19,16 @@ router = APIRouter()
 COMBO_LABELS: dict[str, dict[str, str]] = {
     "draw_dnb0": {"label": "무승부 + 정배팀 DNB(AH0)", "leg_a": "무승부 오즈", "leg_b": "정배팀 DNB 오즈"},
     "draw_ah05": {"label": "무승부 + 정배팀 AH-0.5", "leg_a": "무승부 오즈", "leg_b": "정배팀 AH-0.5 오즈"},
+    "draw_ah15": {"label": "무승부 + 정배팀 AH-1.5", "leg_a": "무승부 오즈", "leg_b": "정배팀 AH-1.5 오즈"},
     "ahplus1_margin1": {
         "label": "역배팀 AH+1 + 정배팀 정확히 1골차 승",
         "leg_a": "역배팀 AH+1 오즈",
         "leg_b": "정배팀 1골차승 오즈",
+    },
+    "ahplus2_margin2": {
+        "label": "역배팀 AH+2 + 정배팀 정확히 2골차 승",
+        "leg_a": "역배팀 AH+2 오즈",
+        "leg_b": "정배팀 2골차승 오즈",
     },
 }
 
@@ -49,6 +55,8 @@ def _derive_selections(combo_type: ComboType, favorite_team: str) -> tuple[str, 
     underdog = "away" if favorite_team == "home" else "home"
     if combo_type == "ahplus1_margin1":
         return underdog, f"{favorite_team}_by_1"
+    if combo_type == "ahplus2_margin2":
+        return underdog, f"{favorite_team}_by_2"
     return "draw", favorite_team
 
 

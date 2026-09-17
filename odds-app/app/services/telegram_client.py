@@ -74,9 +74,10 @@ _SCENARIO_LABELS = {
 def format_pick_message(pick: Pick) -> str:
     emoji = _COMBO_TYPE_EMOJI.get(pick.combo_type, "🧮")
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    grade_emoji = {"S": "🏆", "A": "🟢", "B": "🔵", "C": "🟡", "D": "🔴"}.get(pick.quality_grade or "", "")
 
     lines = [
-        f"{emoji} *새 픽 저장*",
+        f"{emoji} *새 픽 저장*" + (f"  {grade_emoji} *{escape_md(pick.quality_grade)}등급*" if pick.quality_grade else ""),
         "",
         f"⚽ _{escape_md(pick.home_team)} vs {escape_md(pick.away_team)}_",
         f"🏷 *{escape_md(pick.description)}*",
