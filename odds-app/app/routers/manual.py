@@ -18,6 +18,13 @@ from app.templating import templates
 router = APIRouter()
 
 
+def _to_float(value: str | None) -> float | None:
+    """빈 문자열(폼에서 비워둔 선택 입력 필드)을 None으로 취급해 파싱한다."""
+    if value is None or value.strip() == "":
+        return None
+    return float(value)
+
+
 def _empty_form_data() -> dict:
     return {
         "odds_1x2_home": None, "odds_1x2_draw": None, "odds_1x2_away": None,
@@ -61,18 +68,18 @@ def manual_new_submit(
     odds_1x2_home: float = Form(...),
     odds_1x2_draw: float = Form(...),
     odds_1x2_away: float = Form(...),
-    odds_dnb_home: float | None = Form(None),
-    odds_dnb_away: float | None = Form(None),
+    odds_dnb_home: str | None = Form(None),
+    odds_dnb_away: str | None = Form(None),
     favorite_team: str | None = Form(None),
-    odds_ah05_favorite: float | None = Form(None),
-    odds_ah05_underdog: float | None = Form(None),
-    odds_ah1_favorite: float | None = Form(None),
-    odds_ah1_underdog: float | None = Form(None),
-    margin_home_by1: float | None = Form(None),
-    margin_home_by2plus: float | None = Form(None),
-    margin_draw: float | None = Form(None),
-    margin_away_by1: float | None = Form(None),
-    margin_away_by2plus: float | None = Form(None),
+    odds_ah05_favorite: str | None = Form(None),
+    odds_ah05_underdog: str | None = Form(None),
+    odds_ah1_favorite: str | None = Form(None),
+    odds_ah1_underdog: str | None = Form(None),
+    margin_home_by1: str | None = Form(None),
+    margin_home_by2plus: str | None = Form(None),
+    margin_draw: str | None = Form(None),
+    margin_away_by1: str | None = Form(None),
+    margin_away_by2plus: str | None = Form(None),
 ):
     try:
         kickoff = datetime.fromisoformat(kickoff_utc)
@@ -89,12 +96,13 @@ def manual_new_submit(
         fixture.id,
         ManualOddsInput(
             odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-            odds_dnb_home=odds_dnb_home, odds_dnb_away=odds_dnb_away,
+            odds_dnb_home=_to_float(odds_dnb_home), odds_dnb_away=_to_float(odds_dnb_away),
             favorite_team=favorite_team,
-            odds_ah05_favorite=odds_ah05_favorite, odds_ah05_underdog=odds_ah05_underdog,
-            odds_ah1_favorite=odds_ah1_favorite, odds_ah1_underdog=odds_ah1_underdog,
-            margin_home_by1=margin_home_by1, margin_home_by2plus=margin_home_by2plus, margin_draw=margin_draw,
-            margin_away_by1=margin_away_by1, margin_away_by2plus=margin_away_by2plus,
+            odds_ah05_favorite=_to_float(odds_ah05_favorite), odds_ah05_underdog=_to_float(odds_ah05_underdog),
+            odds_ah1_favorite=_to_float(odds_ah1_favorite), odds_ah1_underdog=_to_float(odds_ah1_underdog),
+            margin_home_by1=_to_float(margin_home_by1), margin_home_by2plus=_to_float(margin_home_by2plus),
+            margin_draw=_to_float(margin_draw),
+            margin_away_by1=_to_float(margin_away_by1), margin_away_by2plus=_to_float(margin_away_by2plus),
         ),
     )
     return RedirectResponse(url=f"/fixtures/{fixture.id}", status_code=303)
@@ -124,18 +132,18 @@ def manual_edit_submit(
     odds_1x2_home: float = Form(...),
     odds_1x2_draw: float = Form(...),
     odds_1x2_away: float = Form(...),
-    odds_dnb_home: float | None = Form(None),
-    odds_dnb_away: float | None = Form(None),
+    odds_dnb_home: str | None = Form(None),
+    odds_dnb_away: str | None = Form(None),
     favorite_team: str | None = Form(None),
-    odds_ah05_favorite: float | None = Form(None),
-    odds_ah05_underdog: float | None = Form(None),
-    odds_ah1_favorite: float | None = Form(None),
-    odds_ah1_underdog: float | None = Form(None),
-    margin_home_by1: float | None = Form(None),
-    margin_home_by2plus: float | None = Form(None),
-    margin_draw: float | None = Form(None),
-    margin_away_by1: float | None = Form(None),
-    margin_away_by2plus: float | None = Form(None),
+    odds_ah05_favorite: str | None = Form(None),
+    odds_ah05_underdog: str | None = Form(None),
+    odds_ah1_favorite: str | None = Form(None),
+    odds_ah1_underdog: str | None = Form(None),
+    margin_home_by1: str | None = Form(None),
+    margin_home_by2plus: str | None = Form(None),
+    margin_draw: str | None = Form(None),
+    margin_away_by1: str | None = Form(None),
+    margin_away_by2plus: str | None = Form(None),
 ):
     fixture = db.query(Fixture).filter(Fixture.id == fixture_id, Fixture.source == "manual").one_or_none()
     if fixture is None:
@@ -157,12 +165,13 @@ def manual_edit_submit(
         fixture.id,
         ManualOddsInput(
             odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-            odds_dnb_home=odds_dnb_home, odds_dnb_away=odds_dnb_away,
+            odds_dnb_home=_to_float(odds_dnb_home), odds_dnb_away=_to_float(odds_dnb_away),
             favorite_team=favorite_team,
-            odds_ah05_favorite=odds_ah05_favorite, odds_ah05_underdog=odds_ah05_underdog,
-            odds_ah1_favorite=odds_ah1_favorite, odds_ah1_underdog=odds_ah1_underdog,
-            margin_home_by1=margin_home_by1, margin_home_by2plus=margin_home_by2plus, margin_draw=margin_draw,
-            margin_away_by1=margin_away_by1, margin_away_by2plus=margin_away_by2plus,
+            odds_ah05_favorite=_to_float(odds_ah05_favorite), odds_ah05_underdog=_to_float(odds_ah05_underdog),
+            odds_ah1_favorite=_to_float(odds_ah1_favorite), odds_ah1_underdog=_to_float(odds_ah1_underdog),
+            margin_home_by1=_to_float(margin_home_by1), margin_home_by2plus=_to_float(margin_home_by2plus),
+            margin_draw=_to_float(margin_draw),
+            margin_away_by1=_to_float(margin_away_by1), margin_away_by2plus=_to_float(margin_away_by2plus),
         ),
     )
     return RedirectResponse(url=f"/fixtures/{fixture.id}", status_code=303)
