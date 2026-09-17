@@ -94,6 +94,7 @@ def calculator_compute(
     home_team: str = Form(""),
     away_team: str = Form(""),
     favorite_team: str = Form("home"),
+    comment: str = Form(""),
 ):
     error = None
     result = None
@@ -122,6 +123,7 @@ def calculator_compute(
             "home_team": home_team,
             "away_team": away_team,
             "favorite_team": favorite_team,
+            "comment": comment,
             "saved": False,
         },
     )
@@ -139,6 +141,7 @@ def calculator_save(
     home_team: str = Form(...),
     away_team: str = Form(...),
     favorite_team: str = Form(...),
+    comment: str = Form(""),
 ):
     error = None
     result = None
@@ -170,6 +173,7 @@ def calculator_save(
             implied_hit_rate=None,
             breakeven_prob=result["breakeven_prob"],
             estimated_ev_pct=None,
+            comment=comment or None,
         )
         saved = True
     except ValueError as e:
@@ -191,6 +195,7 @@ def calculator_save(
             "home_team": home_team,
             "away_team": away_team,
             "favorite_team": favorite_team,
+            "comment": comment,
             "saved": saved,
         },
     )

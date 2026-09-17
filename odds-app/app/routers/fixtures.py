@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.models.fixture import Fixture
 from app.models.market import Market
@@ -59,35 +59,32 @@ def dashboard(request: Request, league: str | None = None, db: Session = Depends
 
 
 @router.get("/fixtures/{fixture_id}", response_class=HTMLResponse)
-def fixture_detail(fixture_id: int, request: Request, db: Session = Depends(get_db)):
+def fixture_detail(
+    fixture_id: int, request: Request, total_stake: float | None = None, db: Session = Depends(get_db)
+):
     fixture = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
     if fixture is None:
         raise HTTPException(status_code=404, detail="fixture를 찾을 수 없습니다")
 
-    # 최신 마켓(북메이커별, market_type+line별 가장 최근 fetched_at)만 표시
-    subq = (
-        db.query(
-            Market.market_type,
-            Market.line,
-            Market.bookmaker,
-            func.max(Market.fetched_at).label("max_fetched_at"),
-        )
-        .filter(Market.fixture_id == fixture_id)
-        .group_by(Market.market_type, Market.line, Market.bookmaker)
-        .subquery()
-    )
-    latest_markets = (
+    effective_total_stake = total_stake if total_stake and total_stake > 0 else settings.default_total_stake
+
+    # 최신 마켓(북메이커별, market_type+line별 가장 최근 fetched_at)만 표시.
+    # SQL JOIN으로 line을 비교하면 NULL=NULL이 항상 거짓이라 1X2/DNB/승리마진처럼
+    # line이 없는 마켓이 전부 누락되므로, 그룹핑은 파이썬에서 처리한다.
+    all_markets = (
         db.query(Market)
-        .join(
-            subq,
-            (Market.market_type == subq.c.market_type)
-            & (Market.line == subq.c.line)
-            & (Market.bookmaker == subq.c.bookmaker)
-            & (Market.fetched_at == subq.c.max_fetched_at),
-        )
         .filter(Market.fixture_id == fixture_id)
         .order_by(Market.market_type, Market.line, Market.bookmaker)
         .all()
+    )
+    latest_by_group: dict[tuple, Market] = {}
+    for m in all_markets:
+        key = (m.market_type, m.line, m.bookmaker)
+        current = latest_by_group.get(key)
+        if current is None or m.fetched_at > current.fetched_at:
+            latest_by_group[key] = m
+    latest_markets = sorted(
+        latest_by_group.values(), key=lambda m: (m.market_type, m.line or 0, m.bookmaker)
     )
 
     markets_with_odds = []
@@ -95,7 +92,7 @@ def fixture_detail(fixture_id: int, request: Request, db: Session = Depends(get_
         odds_rows = db.query(Odds).filter(Odds.market_id == m.id).order_by(Odds.selection).all()
         markets_with_odds.append({"market": m, "odds": odds_rows})
 
-    combos = compute_and_cache_combos(db, fixture)
+    combos = compute_and_cache_combos(db, fixture, total_stake=effective_total_stake)
 
     return templates.TemplateResponse(
         request,
@@ -104,6 +101,7 @@ def fixture_detail(fixture_id: int, request: Request, db: Session = Depends(get_
             "fixture": fixture,
             "markets_with_odds": markets_with_odds,
             "combos": combos,
+            "total_stake": effective_total_stake,
         },
     )
 
@@ -126,6 +124,7 @@ def save_pick_from_fixture(
     implied_hit_rate: float = Form(...),
     breakeven_prob: float = Form(...),
     estimated_ev_pct: float = Form(...),
+    comment: str = Form(""),
 ):
     fixture = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
     if fixture is None:
@@ -150,5 +149,6 @@ def save_pick_from_fixture(
         implied_hit_rate=implied_hit_rate,
         breakeven_prob=breakeven_prob,
         estimated_ev_pct=estimated_ev_pct,
+        comment=comment or None,
     )
     return RedirectResponse(url=f"/fixtures/{fixture_id}?saved=1", status_code=303)

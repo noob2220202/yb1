@@ -38,6 +38,19 @@ def test_save_pick_persists_and_defaults_pending(db_session):
     assert reloaded.home_team == "Home FC"
 
 
+def test_save_pick_stores_comment(db_session):
+    pick = _save_sample(db_session, comment="홈팀 주전 결장, 조심")
+    assert pick.comment == "홈팀 주전 결장, 조심"
+
+    reloaded = db_session.query(Pick).filter(Pick.id == pick.id).one()
+    assert reloaded.comment == "홈팀 주전 결장, 조심"
+
+
+def test_save_pick_comment_defaults_to_none(db_session):
+    pick = _save_sample(db_session)
+    assert pick.comment is None
+
+
 def test_grade_and_notify_marks_hit_and_settled(db_session):
     pick = _save_sample(db_session)
     graded = grade_and_notify(db_session, pick, home_score=1, away_score=1)

@@ -75,6 +75,7 @@
             <input type="hidden" name="home_team" value="{{ home_team }}">
             <input type="hidden" name="away_team" value="{{ away_team }}">
             <input type="hidden" name="favorite_team" value="{{ favorite_team }}">
+            <textarea name="comment" class="hidden">{{ comment or "" }}</textarea>
             <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-2 text-sm font-semibold">
                 📌 픽으로 저장 &amp; 텔레그램 전송
             </button>

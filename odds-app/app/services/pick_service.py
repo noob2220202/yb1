@@ -35,6 +35,7 @@ def save_pick(
     implied_hit_rate: float | None = None,
     breakeven_prob: float | None = None,
     estimated_ev_pct: float | None = None,
+    comment: str | None = None,
 ) -> Pick:
     pick = Pick(
         fixture_id=fixture_id,
@@ -55,6 +56,7 @@ def save_pick(
         breakeven_prob=breakeven_prob,
         estimated_ev_pct=estimated_ev_pct,
         quality_grade=compute_quality_grade(estimated_ev_pct, implied_hit_rate, breakeven_prob),
+        comment=comment,
         status="pending",
     )
     db.add(pick)

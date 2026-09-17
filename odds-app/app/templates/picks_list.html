@@ -33,6 +33,9 @@
                 <div class="text-xs text-slate-400">{{ p.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
                 <div class="font-semibold flex items-center gap-2">{{ p.home_team }} vs {{ p.away_team }} {{ grade_badge(p.quality_grade) }}</div>
                 <div class="text-sm text-emerald-400">{{ p.description }}</div>
+                {% if p.comment %}
+                <div class="text-xs text-slate-400 mt-1">📝 {{ p.comment }}</div>
+                {% endif %}
             </div>
             <div class="text-right text-sm">
                 <div class="text-slate-400 text-xs">총 스테이크</div>
@@ -73,6 +76,9 @@
         <div>
             <div class="text-xs text-slate-400 flex items-center gap-2">{{ p.settled_at.strftime("%Y-%m-%d %H:%M") }} · {{ p.home_team }} vs {{ p.away_team }} {{ grade_badge(p.quality_grade) }}</div>
             <div class="text-sm">{{ p.description }} · 스코어 {{ p.home_score_actual }}:{{ p.away_score_actual }} · {{ scenario_labels.get(p.outcome_scenario, p.outcome_scenario) }}</div>
+            {% if p.comment %}
+            <div class="text-xs text-slate-400 mt-1">📝 {{ p.comment }}</div>
+            {% endif %}
         </div>
         <div class="text-right flex items-center gap-3">
             {% if p.hit %}

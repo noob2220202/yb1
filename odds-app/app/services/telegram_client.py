@@ -99,6 +99,10 @@ def format_pick_message(pick: Pick) -> str:
         sign = "\\+" if ev >= 0 else ""
         lines.append(f"📈 추정 EV: {ev_emoji} *{sign}{escape_md(f'{ev:.2f}')}%*")
 
+    if pick.comment:
+        lines += ["", "📝 *코멘트*"]
+        lines += [f"> {escape_md(line)}" for line in pick.comment.splitlines() if line.strip()]
+
     lines += [
         "",
         "> ⚠️ 이 배분은 손익 분산만 줄일 뿐 기대값을 개선하지 않습니다",

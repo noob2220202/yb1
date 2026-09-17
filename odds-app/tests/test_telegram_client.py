@@ -60,6 +60,21 @@ def test_format_pick_message_contains_key_fields_and_disclaimer():
     assert "🔴" in msg  # EV가 음수이므로 빨간 이모지
 
 
+def test_format_pick_message_includes_comment_when_present():
+    pick = _make_pick(comment="홈팀 주전 공격수 결장. 1.5 라인 주의")
+    msg = tg.format_pick_message(pick)
+    assert "코멘트" in msg
+    # '.'은 MarkdownV2 특수문자라 이스케이프돼야 하고, 원본 숫자는 그대로 보여야 함
+    assert "1\\.5" in msg
+    assert "홈팀 주전 공격수 결장" in msg
+
+
+def test_format_pick_message_omits_comment_section_when_absent():
+    pick = _make_pick(comment=None)
+    msg = tg.format_pick_message(pick)
+    assert "코멘트" not in msg
+
+
 def test_format_pick_message_positive_ev_uses_green_emoji():
     pick = _make_pick(estimated_ev_pct=Decimal("1.5"))
     msg = tg.format_pick_message(pick)

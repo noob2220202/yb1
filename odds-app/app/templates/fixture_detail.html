@@ -21,6 +21,15 @@
 
 <h2 class="text-lg font-semibold mb-2">추천 조합</h2>
 
+<form method="get" class="flex items-end gap-2 mb-4">
+    <div>
+        <label class="block text-xs text-slate-400 mb-1">총 스테이크(원) — 전체 조합에 적용</label>
+        <input type="number" name="total_stake" step="1" min="1" value="{{ total_stake|int }}"
+               class="w-40 bg-slate-800 border border-slate-700 rounded p-2 text-sm">
+    </div>
+    <button type="submit" class="bg-slate-700 hover:bg-slate-600 text-white rounded px-4 py-2 text-sm font-semibold">다시 계산</button>
+</form>
+
 <div class="text-xs text-amber-300 border border-amber-700 bg-amber-950/40 rounded p-2 mb-4">
     ⚠ 이 배분은 손익 분산만 줄일 뿐 기대값을 개선하지 않습니다
 </div>
@@ -116,6 +125,8 @@
             <input type="hidden" name="implied_hit_rate" value="{{ c.implied_hit_rate }}">
             <input type="hidden" name="breakeven_prob" value="{{ c.breakeven_prob }}">
             <input type="hidden" name="estimated_ev_pct" value="{{ c.estimated_ev_pct }}">
+            <textarea name="comment" rows="2" placeholder="코멘트(선택, 텔레그램 전송 시 함께 포함)"
+                      class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs mb-2"></textarea>
             <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-2 text-sm font-semibold">
                 📌 픽으로 저장 &amp; 텔레그램 전송
             </button>
