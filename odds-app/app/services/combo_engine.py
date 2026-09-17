@@ -24,6 +24,8 @@ from app.services.staking import (
     calc_ahplus1_margin1_stakes,
     calc_draw_ah05_stakes,
     calc_draw_dnb0_stakes,
+    first_leg_stake,
+    second_leg_stake,
     target_profit_for_total_stake,
 )
 
@@ -121,8 +123,9 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
             candidates.append(_build_candidate(
                 combo_type="draw_dnb0",
                 description=f"무승부 + {'홈팀' if favorite == 'home' else '원정팀'} DNB",
-                leg_a_market=market_draw, leg_a_selection="draw",
-                leg_b_market=market_dnb, leg_b_selection=favorite,
+                leg_a_market=market_draw, leg_a_selection="draw", odds_leg_a=odds_draw,
+                leg_b_market=market_dnb, leg_b_selection=favorite, odds_leg_b=odds_dnb,
+                favorite_side=favorite,
                 staking=staking, implied_hit_rate=implied_hit_rate, ev_pct=ev_pct,
             ))
         except ValueError:
@@ -144,8 +147,9 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
             candidates.append(_build_candidate(
                 combo_type="draw_ah05",
                 description=f"무승부 + {'홈팀' if favorite == 'home' else '원정팀'} AH-0.5",
-                leg_a_market=market_draw, leg_a_selection="draw",
-                leg_b_market=market_ah05, leg_b_selection=favorite,
+                leg_a_market=market_draw, leg_a_selection="draw", odds_leg_a=odds_draw,
+                leg_b_market=market_ah05, leg_b_selection=favorite, odds_leg_b=odds_ah05,
+                favorite_side=favorite,
                 staking=staking, implied_hit_rate=implied_hit_rate, ev_pct=ev_pct,
             ))
         except ValueError:
@@ -164,7 +168,17 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
                 calc_ahplus1_margin1_stakes, odds_ahplus1, odds_margin1, total_stake
             )
             staking = calc_ahplus1_margin1_stakes(odds_ahplus1, odds_margin1, target_profit)
-            implied_hit_rate = (1 - probs_1x2[favorite]) + margin_probs[margin1_selection]
+            # 주의: probs_1x2(1X2 마켓)와 margin_probs(승리마진 마켓)는 서로 다른 마켓에서
+            # 독립적으로 devig되므로 두 확률을 그대로 더하면 100%를 넘을 수 있다(서로 다른
+            # 북메이커 마진이 섞이기 때문). 대신 승리마진 마켓 하나의 분포만으로 계산한다
+            # ("정배 2골차+ 승" 버킷들의 합을 1에서 빼는 방식) — 이 분포는 항상 합이 1이 되도록
+            # devig되어 있으므로 100%를 넘을 수 없다.
+            favorite_prefix = f"{favorite}_by_"
+            favorite_margin2plus_prob = sum(
+                p for sel, p in margin_probs.items()
+                if sel.startswith(favorite_prefix) and sel != margin1_selection
+            )
+            implied_hit_rate = max(0.0, 1 - favorite_margin2plus_prob)
             ev_pct = _combo_ev_pct(
                 staking["stake_ahplus1"], odds_ahplus1, ahplus1_probs[underdog],
                 staking["stake_margin1"], odds_margin1, margin_probs[margin1_selection],
@@ -172,8 +186,9 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
             candidates.append(_build_candidate(
                 combo_type="ahplus1_margin1",
                 description=f"{'원정팀' if favorite == 'home' else '홈팀'} AH+1 + {'홈팀' if favorite == 'home' else '원정팀'} 정확히 1골차 승",
-                leg_a_market=market_ahplus1, leg_a_selection=underdog,
-                leg_b_market=market_margin1, leg_b_selection=margin1_selection,
+                leg_a_market=market_ahplus1, leg_a_selection=underdog, odds_leg_a=odds_ahplus1,
+                leg_b_market=market_margin1, leg_b_selection=margin1_selection, odds_leg_b=odds_margin1,
+                favorite_side=favorite,
                 staking=staking, implied_hit_rate=implied_hit_rate, ev_pct=ev_pct,
             ))
         except ValueError:
@@ -184,21 +199,28 @@ def generate_combo_candidates(db: Session, fixture: Fixture, total_stake: float 
 
 
 def _build_candidate(
-    *, combo_type: str, description: str, leg_a_market: Market, leg_a_selection: str,
-    leg_b_market: Market, leg_b_selection: str, staking: dict, implied_hit_rate: float, ev_pct: float,
+    *, combo_type: str, description: str,
+    leg_a_market: Market, leg_a_selection: str, odds_leg_a: float,
+    leg_b_market: Market, leg_b_selection: str, odds_leg_b: float,
+    favorite_side: str, staking: dict, implied_hit_rate: float, ev_pct: float,
 ) -> dict:
     return {
         "combo_type": combo_type,
         "description": description,
         "leg_a_market_id": leg_a_market.id,
         "leg_a_selection": leg_a_selection,
+        "odds_leg_a": odds_leg_a,
         "leg_b_market_id": leg_b_market.id,
         "leg_b_selection": leg_b_selection,
+        "odds_leg_b": odds_leg_b,
+        "favorite_side": favorite_side,
         "staking": staking,
         "implied_hit_rate": implied_hit_rate,
         "breakeven_prob": staking["breakeven_prob"],
         "estimated_ev_pct": ev_pct,
         "ev_negative": ev_pct < 0,
+        "stake_leg_a": first_leg_stake(staking),
+        "stake_leg_b": second_leg_stake(staking),
         "total_stake": staking["total_stake"],
         "target_profit": staking["target_profit"],
         "disclaimer": STAKING_DISCLAIMER,
@@ -221,20 +243,10 @@ def compute_and_cache_combos(db: Session, fixture: Fixture, total_stake: float |
             implied_hit_rate=c["implied_hit_rate"],
             breakeven_prob=c["breakeven_prob"],
             estimated_ev_pct=c["estimated_ev_pct"],
-            stake_leg_a=_first_stake(c["staking"]),
-            stake_leg_b=_second_stake(c["staking"]),
+            stake_leg_a=c["stake_leg_a"],
+            stake_leg_b=c["stake_leg_b"],
             total_stake=c["total_stake"],
             target_profit=c["target_profit"],
         ))
     db.commit()
     return candidates
-
-
-def _first_stake(staking: dict) -> float:
-    stake_keys = [k for k in staking if k.startswith("stake_")]
-    return staking[stake_keys[0]]
-
-
-def _second_stake(staking: dict) -> float:
-    stake_keys = [k for k in staking if k.startswith("stake_")]
-    return staking[stake_keys[1]]

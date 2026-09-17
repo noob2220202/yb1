@@ -45,9 +45,9 @@
                 <tbody>
                     {% for name, s in result.all_scenarios.items() %}
                     <tr class="border-b border-slate-800">
-                        <td class="py-1 pr-4">{{ name }}</td>
-                        <td class="py-1 pr-4">{{ s.leg_a }}</td>
-                        <td class="py-1 pr-4">{{ s.leg_b }}</td>
+                        <td class="py-1 pr-4">{{ scenario_labels.get(name, name) }}</td>
+                        <td class="py-1 pr-4">{{ leg_result_labels.get(s.leg_a, s.leg_a) }}</td>
+                        <td class="py-1 pr-4">{{ leg_result_labels.get(s.leg_b, s.leg_b) }}</td>
                         <td class="py-1 pr-4 font-mono {{ 'text-emerald-400' if s.net_profit >= 0 else 'text-red-400' }}">
                             {{ "%.0f"|format(s.net_profit) }}원
                         </td>
@@ -60,6 +60,26 @@
         <div class="text-xs text-amber-300 border border-amber-700 bg-amber-950/40 rounded p-2">
             ⚠ {{ disclaimer }}
         </div>
+
+        {% if saved %}
+        <div class="text-sm text-emerald-300 border border-emerald-700 bg-emerald-950/40 rounded p-2">
+            ✅ 픽으로 저장했습니다 (텔레그램 설정돼 있으면 바로 전송됨) — <a href="/picks" class="underline">픽 기록 보기</a>
+        </div>
+        {% else %}
+        <form hx-post="/calculator/save" hx-target="#calc-result" hx-swap="outerHTML">
+            <input type="hidden" name="combo_type" value="{{ combo_type }}">
+            <input type="hidden" name="odds_a" value="{{ odds_a }}">
+            <input type="hidden" name="odds_b" value="{{ odds_b }}">
+            <input type="hidden" name="input_mode" value="{{ input_mode }}">
+            <input type="hidden" name="amount" value="{{ amount }}">
+            <input type="hidden" name="home_team" value="{{ home_team }}">
+            <input type="hidden" name="away_team" value="{{ away_team }}">
+            <input type="hidden" name="favorite_team" value="{{ favorite_team }}">
+            <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-2 text-sm font-semibold">
+                📌 픽으로 저장 &amp; 텔레그램 전송
+            </button>
+        </form>
+        {% endif %}
     </div>
 {% endif %}
 </div>

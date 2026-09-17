@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}통계{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-4">적중률 / 손익 통계</h1>
+
+{% if stats.settled_count == 0 %}
+<div class="text-slate-400 border border-slate-700 rounded p-6 text-center">
+    아직 채점된 픽이 없습니다. <a href="/picks" class="text-sky-400 hover:underline">픽 기록</a>에서 스코어를 입력해보세요.
+    (대기 중인 픽 {{ stats.pending_count }}개)
+</div>
+{% else %}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+    <div class="bg-slate-800 border border-slate-700 rounded p-4">
+        <div class="text-xs text-slate-400">채점 완료</div>
+        <div class="text-2xl font-mono">{{ stats.settled_count }}</div>
+        <div class="text-xs text-slate-500">대기 중 {{ stats.pending_count }}</div>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded p-4">
+        <div class="text-xs text-slate-400">적중률</div>
+        <div class="text-2xl font-mono text-amber-400">{{ "%.1f"|format(stats.hit_rate * 100) }}%</div>
+        <div class="text-xs text-slate-500">{{ stats.hits }}/{{ stats.settled_count }} 적중</div>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded p-4">
+        <div class="text-xs text-slate-400">누적 손익</div>
+        <div class="text-2xl font-mono {{ 'text-emerald-400' if stats.total_profit >= 0 else 'text-red-400' }}">{{ "%.0f"|format(stats.total_profit) }}원</div>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded p-4">
+        <div class="text-xs text-slate-400">ROI</div>
+        <div class="text-2xl font-mono {{ 'text-emerald-400' if stats.roi_pct >= 0 else 'text-red-400' }}">{{ "%.1f"|format(stats.roi_pct) }}%</div>
+        <div class="text-xs text-slate-500">총 스테이크 {{ "%.0f"|format(stats.total_staked) }}원</div>
+    </div>
+</div>
+
+<h2 class="text-lg font-semibold mb-2">조합 타입별</h2>
+<table class="w-full text-sm border-collapse">
+    <thead>
+        <tr class="text-left text-slate-400 border-b border-slate-700">
+            <th class="py-1 pr-4">조합 타입</th>
+            <th class="py-1 pr-4">건수</th>
+            <th class="py-1 pr-4">적중률</th>
+            <th class="py-1 pr-4">손익</th>
+            <th class="py-1 pr-4">ROI</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for combo_type, b in stats.by_combo_type.items() %}
+        <tr class="border-b border-slate-800">
+            <td class="py-1 pr-4">{{ combo_type_labels.get(combo_type, combo_type) }}</td>
+            <td class="py-1 pr-4 font-mono">{{ b.count }}</td>
+            <td class="py-1 pr-4 font-mono">{{ "%.1f"|format(b.hit_rate * 100) }}%</td>
+            <td class="py-1 pr-4 font-mono {{ 'text-emerald-400' if b.profit >= 0 else 'text-red-400' }}">{{ "%.0f"|format(b.profit) }}원</td>
+            <td class="py-1 pr-4 font-mono {{ 'text-emerald-400' if b.roi_pct >= 0 else 'text-red-400' }}">{{ "%.1f"|format(b.roi_pct) }}%</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

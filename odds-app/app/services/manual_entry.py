@@ -7,8 +7,10 @@ API 키 없이도 사용자가 직접 마켓 오즈를 입력해 combo_engine을
 - 무승부무효(DNB)
 - 아시안 핸디캡 -0.5/+0.5
 - 아시안 핸디캡 -1/+1
-- 승리마진(홈 1골차/홈 2골차+/무승부/원정 1골차/원정 2골차+) — 5구간 합이
-  전체 확률 공간을 이루도록 해 devig 정확도를 확보한다.
+- 승리마진(홈/원정 각각 1골차·2골차·3골차·4골차+ + 무승부) — 9구간 합이
+  전체 확률 공간을 이루도록 해 devig 정확도를 확보한다. 구간을 세분화할수록
+  "정배 1골차 승"(ahplus1_margin1 조합이 실제로 쓰는 값) 대비 나머지 구간의
+  확률이 정확해져 적중확률 추정치가 더 신뢰할 수 있어진다.
 
 핸디캡 라인은 "어느 팀이 정배(마이너스 라인)인지"에 따라 부호가 달라지므로,
 두 핸디캡 마켓 모두 공통 `favorite_team`(홈/원정) 값을 기준으로 저장한다
@@ -47,10 +49,14 @@ class ManualOddsInput:
     odds_ah1_favorite: float | None = None
     odds_ah1_underdog: float | None = None
     margin_home_by1: float | None = None
-    margin_home_by2plus: float | None = None
+    margin_home_by2: float | None = None
+    margin_home_by3: float | None = None
+    margin_home_by4plus: float | None = None
     margin_draw: float | None = None
     margin_away_by1: float | None = None
-    margin_away_by2plus: float | None = None
+    margin_away_by2: float | None = None
+    margin_away_by3: float | None = None
+    margin_away_by4plus: float | None = None
 
 
 def create_manual_fixture(
@@ -135,10 +141,14 @@ def save_manual_odds(db: Session, fixture_id: int, data: ManualOddsInput) -> Non
         db, fixture_id, "win_margin", None,
         {
             "home_by_1": data.margin_home_by1,
-            "home_by_2plus": data.margin_home_by2plus,
+            "home_by_2": data.margin_home_by2,
+            "home_by_3": data.margin_home_by3,
+            "home_by_4plus": data.margin_home_by4plus,
             "draw": data.margin_draw,
             "away_by_1": data.margin_away_by1,
-            "away_by_2plus": data.margin_away_by2plus,
+            "away_by_2": data.margin_away_by2,
+            "away_by_3": data.margin_away_by3,
+            "away_by_4plus": data.margin_away_by4plus,
         },
     )
 
@@ -153,8 +163,9 @@ def load_manual_form_data(db: Session, fixture_id: int) -> dict:
         "favorite_team": "home",
         "odds_ah05_favorite": None, "odds_ah05_underdog": None,
         "odds_ah1_favorite": None, "odds_ah1_underdog": None,
-        "margin_home_by1": None, "margin_home_by2plus": None, "margin_draw": None,
-        "margin_away_by1": None, "margin_away_by2plus": None,
+        "margin_home_by1": None, "margin_home_by2": None, "margin_home_by3": None, "margin_home_by4plus": None,
+        "margin_draw": None,
+        "margin_away_by1": None, "margin_away_by2": None, "margin_away_by3": None, "margin_away_by4plus": None,
     }
     markets = (
         db.query(Market)
@@ -188,9 +199,13 @@ def load_manual_form_data(db: Session, fixture_id: int) -> dict:
                 result["odds_ah1_underdog"] = by_sel.get(underdog)
         elif m.market_type == "win_margin":
             result["margin_home_by1"] = by_sel.get("home_by_1")
-            result["margin_home_by2plus"] = by_sel.get("home_by_2plus")
+            result["margin_home_by2"] = by_sel.get("home_by_2")
+            result["margin_home_by3"] = by_sel.get("home_by_3")
+            result["margin_home_by4plus"] = by_sel.get("home_by_4plus")
             result["margin_draw"] = by_sel.get("draw")
             result["margin_away_by1"] = by_sel.get("away_by_1")
-            result["margin_away_by2plus"] = by_sel.get("away_by_2plus")
+            result["margin_away_by2"] = by_sel.get("away_by_2")
+            result["margin_away_by3"] = by_sel.get("away_by_3")
+            result["margin_away_by4plus"] = by_sel.get("away_by_4plus")
 
     return result

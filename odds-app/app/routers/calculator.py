@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
+from app.db import get_db
 from app.schemas.calculator import ComboType, EqualizeRequest
+from app.services.pick_service import save_pick
 from app.services.staking import (
     COMBO_CALCULATORS,
     STAKING_DISCLAIMER,
+    first_leg_stake,
+    second_leg_stake,
     target_profit_for_total_stake,
 )
 from app.templating import templates
@@ -39,6 +44,14 @@ def resolve_target_profit(
     return target_profit_for_total_stake(calc_fn, odds_a, odds_b, total_stake)  # type: ignore[arg-type]
 
 
+def _derive_selections(combo_type: ComboType, favorite_team: str) -> tuple[str, str]:
+    """combo_engine과 동일한 규칙으로 leg_a/leg_b 셀렉션 라벨을 생성한다."""
+    underdog = "away" if favorite_team == "home" else "home"
+    if combo_type == "ahplus1_margin1":
+        return underdog, f"{favorite_team}_by_1"
+    return "draw", favorite_team
+
+
 @router.post("/api/calculator/equalize")
 def api_equalize(payload: EqualizeRequest) -> dict:
     target_profit = resolve_target_profit(
@@ -70,6 +83,9 @@ def calculator_compute(
     odds_b: float = Form(...),
     input_mode: str = Form("target_profit"),
     amount: float = Form(...),
+    home_team: str = Form(""),
+    away_team: str = Form(""),
+    favorite_team: str = Form("home"),
 ):
     error = None
     result = None
@@ -91,5 +107,82 @@ def calculator_compute(
             "combo_labels": COMBO_LABELS,
             "combo_type": combo_type,
             "disclaimer": STAKING_DISCLAIMER,
+            "odds_a": odds_a,
+            "odds_b": odds_b,
+            "input_mode": input_mode,
+            "amount": amount,
+            "home_team": home_team,
+            "away_team": away_team,
+            "favorite_team": favorite_team,
+            "saved": False,
+        },
+    )
+
+
+@router.post("/calculator/save", response_class=HTMLResponse)
+def calculator_save(
+    request: Request,
+    db: Session = Depends(get_db),
+    combo_type: ComboType = Form(...),
+    odds_a: float = Form(...),
+    odds_b: float = Form(...),
+    input_mode: str = Form("target_profit"),
+    amount: float = Form(...),
+    home_team: str = Form(...),
+    away_team: str = Form(...),
+    favorite_team: str = Form(...),
+):
+    error = None
+    result = None
+    saved = False
+    try:
+        if input_mode == "total_stake":
+            target_profit = resolve_target_profit(combo_type, odds_a, odds_b, None, amount)
+        else:
+            target_profit = amount
+        result = equalize(combo_type, odds_a, odds_b, target_profit)
+
+        leg_a_selection, leg_b_selection = _derive_selections(combo_type, favorite_team)
+        save_pick(
+            db,
+            fixture_id=None,
+            home_team=home_team or "다리 A",
+            away_team=away_team or "다리 B",
+            combo_type=combo_type,
+            description=COMBO_LABELS[combo_type]["label"],
+            leg_a_selection=leg_a_selection,
+            leg_b_selection=leg_b_selection,
+            favorite_side=favorite_team,
+            odds_leg_a=odds_a,
+            odds_leg_b=odds_b,
+            stake_leg_a=first_leg_stake(result),
+            stake_leg_b=second_leg_stake(result),
+            total_stake=result["total_stake"],
+            target_profit=result["target_profit"],
+            implied_hit_rate=None,
+            breakeven_prob=result["breakeven_prob"],
+            estimated_ev_pct=None,
+        )
+        saved = True
+    except ValueError as e:
+        error = str(e)
+
+    return templates.TemplateResponse(
+        request,
+        "_calculator_result.html",
+        {
+            "result": result,
+            "error": error,
+            "combo_labels": COMBO_LABELS,
+            "combo_type": combo_type,
+            "disclaimer": STAKING_DISCLAIMER,
+            "odds_a": odds_a,
+            "odds_b": odds_b,
+            "input_mode": input_mode,
+            "amount": amount,
+            "home_team": home_team,
+            "away_team": away_team,
+            "favorite_team": favorite_team,
+            "saved": saved,
         },
     )

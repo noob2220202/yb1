@@ -140,8 +140,9 @@ API-Football은 유료이므로, 키를 결제하기 전에도 조합 추천 엔
 - 상단 네비게이션의 **수동 입력** → **+ 새 경기 입력**에서 팀명/킥오프와
   오즈를 직접 입력한다.
 - 입력 항목은 조합 계산에 실제로 쓰이는 마켓만: **1X2(필수)**, DNB, 아시안
-  핸디캡 ±0.5/±1, 승리마진(홈 1골차/홈 2골차+/무승부/원정 1골차/원정 2골차+).
-  모르는 값은 비워두면 해당 마켓이 필요한 조합만 자동으로 생략된다.
+  핸디캡 ±0.5/±1, 승리마진(홈/원정 각각 1·2·3·4골차+ + 무승부). 모르는 값은
+  비워두면 해당 마켓이 필요한 조합만 자동으로 생략된다. 승리마진은 구간을
+  세밀하게 입력할수록(2/3/4골차+까지) 적중확률 추정이 정확해진다.
 - 핸디캡 두 라인(±0.5, ±1) 모두 "정배팀(홈/원정)"을 한 번만 고르면 되고,
   나머지는 그 팀 기준 오즈만 입력하면 된다 — 어느 팀이 실제 정배인지는
   1X2 오즈로 devig 엔진이 다시 한번 검증해서 조합을 만든다.
@@ -150,6 +151,27 @@ API-Football은 유료이므로, 키를 결제하기 전에도 조합 추천 엔
 - 수동 입력 경기는 대시보드(`/`)에는 나오지 않고 `/manual` 목록에서만 관리한다.
 - 오즈가 바뀌면(라인업 발표 등) 같은 경기를 다시 "수정"하면 되며, 저장할
   때마다 기존 값은 덮어써진다(시계열 이력 없음 — 자동 수집과 다른 점).
+
+## 픽 저장 · 채점 · 통계 · 텔레그램 전송
+
+경기 상세 페이지의 조합 카드, `/calculator` 계산 결과 모두 **"📌 픽으로 저장 &
+텔레그램 전송"** 버튼이 있다. 누르면:
+
+1. `picks` 테이블에 그 시점의 오즈/스테이크/적중확률/EV가 그대로 저장된다.
+2. `.env`의 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`가 설정돼 있으면 즉시
+   이모지·볼드·이탤릭·인용문으로 꾸민 메시지를 그 채널/그룹/DM으로 전송한다
+   (둘 다 비어있으면 조용히 스킵 — 텔레그램 없이도 저장은 항상 동작).
+
+**텔레그램 연결 방법**: @BotFather에게 `/newbot`으로 봇 생성 → 토큰 발급 →
+그 봇을 채널/그룹에 관리자로 추가 → `.env`에 토큰과 chat_id 입력.
+
+**`/picks`(픽 기록)**: 채점 대기 중인 픽에 최종 스코어(홈:원정)만 입력하면
+저장 시점의 오즈/스테이크로 각 조합의 시나리오 규칙(`staking.py`)을 그대로
+재계산해 적중/실패와 실제 손익을 자동 판정한다 — 사람이 직접 "적중/실패"를
+고를 필요 없음. 채점 결과도 텔레그램으로 바로 전송된다.
+
+**`/stats`(통계)**: 채점 완료된 픽 기준 전체 적중률·누적 손익·ROI, 조합
+타입별 세부 통계를 보여준다.
 
 ## API-Football 키 연동 (중요 — 실제 데이터 수집을 위한 필수 단계)
 
@@ -224,19 +246,22 @@ odds-app/
 │   ├── config.py                # .env 로드
 │   ├── db.py                    # SQLAlchemy engine/session
 │   ├── templating.py            # Jinja2Templates 공용 인스턴스
-│   ├── models/                  # ORM 모델 (fixture/market/odds/combo)
+│   ├── models/                  # ORM 모델 (fixture/market/odds/combo/pick)
 │   ├── schemas/                 # Pydantic 스키마
 │   ├── clients/odds_api_client.py
 │   ├── services/
 │   │   ├── ingest.py             # 오즈 수집 파이프라인
 │   │   ├── market_type_mapping.py
 │   │   ├── devig.py              # 마진 제거 확률 계산
-│   │   ├── staking.py            # 이익균등화 계산기
+│   │   ├── staking.py            # 이익균등화 계산기 + 한국어 라벨
 │   │   ├── combo_engine.py       # 조합 생성/랭킹
 │   │   ├── manual_entry.py       # API 키 없이 수동 오즈 입력
+│   │   ├── grading.py            # 저장된 픽을 실제 스코어로 채점
+│   │   ├── pick_service.py       # 픽 저장/채점/통계 오케스트레이션
+│   │   ├── telegram_client.py    # 텔레그램 전송 + 메시지 포맷
 │   │   └── scheduler.py          # APScheduler job 정의
-│   ├── routers/ (fixtures.py, manual.py, calculator.py)
-│   └── templates/ (base/dashboard/fixture_detail/calculator/manual_list/manual_form.html)
+│   ├── routers/ (fixtures.py, manual.py, calculator.py, picks.py)
+│   └── templates/ (base/dashboard/fixture_detail/calculator/manual_list/manual_form/picks_list/stats.html)
 ├── alembic/
 ├── tests/
 ├── scripts/inspect_api_response.py

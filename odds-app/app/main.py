@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.db import SessionLocal
-from app.routers import calculator, fixtures, manual
+from app.routers import calculator, fixtures, manual, picks
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("oddsapp")
@@ -14,6 +14,7 @@ app = FastAPI(title="Soccer Odds Analysis")
 app.include_router(fixtures.router)
 app.include_router(manual.router)
 app.include_router(calculator.router)
+app.include_router(picks.router)
 
 
 @app.get("/health")

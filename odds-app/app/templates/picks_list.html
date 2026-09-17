@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}픽 기록{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold">픽 기록</h1>
+    <a href="/stats" class="text-sm text-sky-400 hover:underline">📊 통계 보기</a>
+</div>
+
+<h2 class="text-lg font-semibold mb-2">채점 대기 중 ({{ pending|length }})</h2>
+{% if not pending %}
+<div class="text-slate-400 border border-slate-700 rounded p-4 text-center mb-8 text-sm">
+    대기 중인 픽이 없습니다.
+</div>
+{% else %}
+<div class="space-y-3 mb-8">
+    {% for p in pending %}
+    <div class="bg-slate-800 border border-slate-700 rounded p-4 space-y-3">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-xs text-slate-400">{{ p.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+                <div class="font-semibold">{{ p.home_team }} vs {{ p.away_team }}</div>
+                <div class="text-sm text-emerald-400">{{ p.description }}</div>
+            </div>
+            <div class="text-right text-sm">
+                <div class="text-slate-400 text-xs">총 스테이크</div>
+                <div class="font-mono">{{ "%.0f"|format(p.total_stake) }}원</div>
+            </div>
+        </div>
+
+        <div class="flex items-end gap-2">
+            <form method="post" action="/picks/{{ p.id }}/grade" class="flex items-end gap-2">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">홈 스코어</label>
+                    <input type="number" name="home_score" required min="0" class="w-20 bg-slate-900 border border-slate-700 rounded p-2">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">원정 스코어</label>
+                    <input type="number" name="away_score" required min="0" class="w-20 bg-slate-900 border border-slate-700 rounded p-2">
+                </div>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded px-4 py-2 text-sm font-semibold">채점</button>
+            </form>
+            <form method="post" action="/picks/{{ p.id }}/delete" onsubmit="return confirm('삭제하시겠습니까?');">
+                <button type="submit" class="text-xs bg-red-900 hover:bg-red-800 text-red-200 rounded px-3 py-2">삭제</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="text-lg font-semibold mb-2">채점 완료 ({{ settled|length }})</h2>
+{% if not settled %}
+<div class="text-slate-400 border border-slate-700 rounded p-4 text-center text-sm">
+    채점된 픽이 없습니다.
+</div>
+{% else %}
+<div class="space-y-2">
+    {% for p in settled %}
+    <div class="bg-slate-800 border border-slate-700 rounded p-3 flex items-center justify-between">
+        <div>
+            <div class="text-xs text-slate-400">{{ p.settled_at.strftime("%Y-%m-%d %H:%M") }} · {{ p.home_team }} vs {{ p.away_team }}</div>
+            <div class="text-sm">{{ p.description }} · 스코어 {{ p.home_score_actual }}:{{ p.away_score_actual }} · {{ scenario_labels.get(p.outcome_scenario, p.outcome_scenario) }}</div>
+        </div>
+        <div class="text-right flex items-center gap-3">
+            {% if p.hit %}
+            <span class="bg-emerald-900 text-emerald-200 text-xs px-2 py-1 rounded">✅ 적중</span>
+            {% else %}
+            <span class="bg-red-900 text-red-200 text-xs px-2 py-1 rounded">❌ 실패</span>
+            {% endif %}
+            <span class="font-mono {{ 'text-emerald-400' if p.hit else 'text-red-400' }}">{{ "%.0f"|format(p.actual_profit) }}원</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

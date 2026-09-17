@@ -34,8 +34,8 @@ def test_save_and_load_manual_odds_roundtrip_home_favorite(db_session):
         favorite_team="home",
         odds_ah05_favorite=1.95, odds_ah05_underdog=1.85,
         odds_ah1_favorite=1.30, odds_ah1_underdog=3.20,
-        margin_home_by1=3.5, margin_home_by2plus=2.5, margin_draw=3.4,
-        margin_away_by1=7.0, margin_away_by2plus=15.0,
+        margin_home_by1=3.5, margin_home_by4plus=2.5, margin_draw=3.4,
+        margin_away_by1=7.0, margin_away_by4plus=15.0,
     )
     save_manual_odds(db_session, fixture.id, data)
 
@@ -45,7 +45,7 @@ def test_save_and_load_manual_odds_roundtrip_home_favorite(db_session):
     assert loaded["favorite_team"] == "home"
     assert loaded["odds_ah05_favorite"] == 1.95
     assert loaded["odds_ah1_underdog"] == 3.20
-    assert loaded["margin_away_by2plus"] == 15.0
+    assert loaded["margin_away_by4plus"] == 15.0
 
 
 def test_save_manual_odds_overwrites_not_accumulates(db_session):
@@ -82,8 +82,8 @@ def test_save_manual_odds_after_combo_cache_does_not_violate_fk(db_session):
         favorite_team="home",
         odds_ah05_favorite=1.95, odds_ah05_underdog=1.85,
         odds_ah1_favorite=1.30, odds_ah1_underdog=3.20,
-        margin_home_by1=3.5, margin_home_by2plus=2.5, margin_draw=3.4,
-        margin_away_by1=7.0, margin_away_by2plus=15.0,
+        margin_home_by1=3.5, margin_home_by4plus=2.5, margin_draw=3.4,
+        margin_away_by1=7.0, margin_away_by4plus=15.0,
     )
     save_manual_odds(db_session, fixture.id, data)
 
@@ -124,8 +124,8 @@ def test_manual_entry_combo_engine_works_with_away_favorite(db_session):
         favorite_team="away",
         odds_ah05_favorite=1.95, odds_ah05_underdog=1.85,
         odds_ah1_favorite=1.30, odds_ah1_underdog=3.20,
-        margin_home_by1=7.0, margin_home_by2plus=15.0, margin_draw=3.4,
-        margin_away_by1=3.5, margin_away_by2plus=2.5,
+        margin_home_by1=7.0, margin_home_by4plus=15.0, margin_draw=3.4,
+        margin_away_by1=3.5, margin_away_by4plus=2.5,
     )
     save_manual_odds(db_session, fixture.id, data)
 

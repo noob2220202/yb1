@@ -11,6 +11,9 @@ class Settings(BaseSettings):
 
     default_total_stake: float = 30000.0
 
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+
     ingest_interval_minutes: int = 15
     ingest_urgent_interval_minutes: int = 5
     ingest_urgent_window_hours: int = 3

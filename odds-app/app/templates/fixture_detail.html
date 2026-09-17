@@ -13,6 +13,12 @@
     <div class="text-sm text-slate-400">{{ fixture.league_name }} · {{ fixture.kickoff_utc.strftime("%Y-%m-%d %H:%M UTC") }}</div>
 </div>
 
+{% if request.query_params.get('saved') %}
+<div class="text-sm text-emerald-300 border border-emerald-700 bg-emerald-950/40 rounded p-2 mb-4">
+    ✅ 픽으로 저장했습니다 (텔레그램 설정돼 있으면 바로 전송됨) — <a href="/picks" class="underline">픽 기록 보기</a>
+</div>
+{% endif %}
+
 <h2 class="text-lg font-semibold mb-2">추천 조합</h2>
 
 <div class="text-xs text-amber-300 border border-amber-700 bg-amber-950/40 rounded p-2 mb-4">
@@ -74,14 +80,34 @@
             <tbody>
                 {% for name, s in c.staking.all_scenarios.items() %}
                 <tr class="border-b border-slate-800">
-                    <td class="py-1 pr-2">{{ name }}</td>
-                    <td class="py-1 pr-2">{{ s.leg_a }}</td>
-                    <td class="py-1 pr-2">{{ s.leg_b }}</td>
+                    <td class="py-1 pr-2">{{ scenario_labels.get(name, name) }}</td>
+                    <td class="py-1 pr-2">{{ leg_result_labels.get(s.leg_a, s.leg_a) }}</td>
+                    <td class="py-1 pr-2">{{ leg_result_labels.get(s.leg_b, s.leg_b) }}</td>
                     <td class="py-1 pr-2 font-mono {{ 'text-emerald-400' if s.net_profit >= 0 else 'text-red-400' }}">{{ "%.0f"|format(s.net_profit) }}원</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <form method="post" action="/fixtures/{{ fixture.id }}/picks">
+            <input type="hidden" name="combo_type" value="{{ c.combo_type }}">
+            <input type="hidden" name="description" value="{{ c.description }}">
+            <input type="hidden" name="leg_a_selection" value="{{ c.leg_a_selection }}">
+            <input type="hidden" name="leg_b_selection" value="{{ c.leg_b_selection }}">
+            <input type="hidden" name="favorite_side" value="{{ c.favorite_side }}">
+            <input type="hidden" name="odds_leg_a" value="{{ c.odds_leg_a }}">
+            <input type="hidden" name="odds_leg_b" value="{{ c.odds_leg_b }}">
+            <input type="hidden" name="stake_leg_a" value="{{ c.stake_leg_a }}">
+            <input type="hidden" name="stake_leg_b" value="{{ c.stake_leg_b }}">
+            <input type="hidden" name="total_stake" value="{{ c.total_stake }}">
+            <input type="hidden" name="target_profit" value="{{ c.target_profit }}">
+            <input type="hidden" name="implied_hit_rate" value="{{ c.implied_hit_rate }}">
+            <input type="hidden" name="breakeven_prob" value="{{ c.breakeven_prob }}">
+            <input type="hidden" name="estimated_ev_pct" value="{{ c.estimated_ev_pct }}">
+            <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-2 text-sm font-semibold">
+                📌 픽으로 저장 &amp; 텔레그램 전송
+            </button>
+        </form>
     </div>
     {% endfor %}
 </div>

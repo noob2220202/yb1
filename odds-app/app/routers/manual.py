@@ -32,9 +32,37 @@ def _empty_form_data() -> dict:
         "favorite_team": "home",
         "odds_ah05_favorite": None, "odds_ah05_underdog": None,
         "odds_ah1_favorite": None, "odds_ah1_underdog": None,
-        "margin_home_by1": None, "margin_home_by2plus": None, "margin_draw": None,
-        "margin_away_by1": None, "margin_away_by2plus": None,
+        "margin_home_by1": None, "margin_home_by2": None, "margin_home_by3": None, "margin_home_by4plus": None,
+        "margin_draw": None,
+        "margin_away_by1": None, "margin_away_by2": None, "margin_away_by3": None, "margin_away_by4plus": None,
     }
+
+
+def _build_manual_odds_input(
+    *,
+    odds_1x2_home: float, odds_1x2_draw: float, odds_1x2_away: float,
+    odds_dnb_home: str | None, odds_dnb_away: str | None,
+    favorite_team: str | None,
+    odds_ah05_favorite: str | None, odds_ah05_underdog: str | None,
+    odds_ah1_favorite: str | None, odds_ah1_underdog: str | None,
+    margin_home_by1: str | None, margin_home_by2: str | None,
+    margin_home_by3: str | None, margin_home_by4plus: str | None,
+    margin_draw: str | None,
+    margin_away_by1: str | None, margin_away_by2: str | None,
+    margin_away_by3: str | None, margin_away_by4plus: str | None,
+) -> ManualOddsInput:
+    return ManualOddsInput(
+        odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
+        odds_dnb_home=_to_float(odds_dnb_home), odds_dnb_away=_to_float(odds_dnb_away),
+        favorite_team=favorite_team,
+        odds_ah05_favorite=_to_float(odds_ah05_favorite), odds_ah05_underdog=_to_float(odds_ah05_underdog),
+        odds_ah1_favorite=_to_float(odds_ah1_favorite), odds_ah1_underdog=_to_float(odds_ah1_underdog),
+        margin_home_by1=_to_float(margin_home_by1), margin_home_by2=_to_float(margin_home_by2),
+        margin_home_by3=_to_float(margin_home_by3), margin_home_by4plus=_to_float(margin_home_by4plus),
+        margin_draw=_to_float(margin_draw),
+        margin_away_by1=_to_float(margin_away_by1), margin_away_by2=_to_float(margin_away_by2),
+        margin_away_by3=_to_float(margin_away_by3), margin_away_by4plus=_to_float(margin_away_by4plus),
+    )
 
 
 @router.get("/manual", response_class=HTMLResponse)
@@ -76,10 +104,14 @@ def manual_new_submit(
     odds_ah1_favorite: str | None = Form(None),
     odds_ah1_underdog: str | None = Form(None),
     margin_home_by1: str | None = Form(None),
-    margin_home_by2plus: str | None = Form(None),
+    margin_home_by2: str | None = Form(None),
+    margin_home_by3: str | None = Form(None),
+    margin_home_by4plus: str | None = Form(None),
     margin_draw: str | None = Form(None),
     margin_away_by1: str | None = Form(None),
-    margin_away_by2plus: str | None = Form(None),
+    margin_away_by2: str | None = Form(None),
+    margin_away_by3: str | None = Form(None),
+    margin_away_by4plus: str | None = Form(None),
 ):
     try:
         kickoff = datetime.fromisoformat(kickoff_utc)
@@ -94,15 +126,17 @@ def manual_new_submit(
     save_manual_odds(
         db,
         fixture.id,
-        ManualOddsInput(
+        _build_manual_odds_input(
             odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-            odds_dnb_home=_to_float(odds_dnb_home), odds_dnb_away=_to_float(odds_dnb_away),
+            odds_dnb_home=odds_dnb_home, odds_dnb_away=odds_dnb_away,
             favorite_team=favorite_team,
-            odds_ah05_favorite=_to_float(odds_ah05_favorite), odds_ah05_underdog=_to_float(odds_ah05_underdog),
-            odds_ah1_favorite=_to_float(odds_ah1_favorite), odds_ah1_underdog=_to_float(odds_ah1_underdog),
-            margin_home_by1=_to_float(margin_home_by1), margin_home_by2plus=_to_float(margin_home_by2plus),
-            margin_draw=_to_float(margin_draw),
-            margin_away_by1=_to_float(margin_away_by1), margin_away_by2plus=_to_float(margin_away_by2plus),
+            odds_ah05_favorite=odds_ah05_favorite, odds_ah05_underdog=odds_ah05_underdog,
+            odds_ah1_favorite=odds_ah1_favorite, odds_ah1_underdog=odds_ah1_underdog,
+            margin_home_by1=margin_home_by1, margin_home_by2=margin_home_by2,
+            margin_home_by3=margin_home_by3, margin_home_by4plus=margin_home_by4plus,
+            margin_draw=margin_draw,
+            margin_away_by1=margin_away_by1, margin_away_by2=margin_away_by2,
+            margin_away_by3=margin_away_by3, margin_away_by4plus=margin_away_by4plus,
         ),
     )
     return RedirectResponse(url=f"/fixtures/{fixture.id}", status_code=303)
@@ -140,10 +174,14 @@ def manual_edit_submit(
     odds_ah1_favorite: str | None = Form(None),
     odds_ah1_underdog: str | None = Form(None),
     margin_home_by1: str | None = Form(None),
-    margin_home_by2plus: str | None = Form(None),
+    margin_home_by2: str | None = Form(None),
+    margin_home_by3: str | None = Form(None),
+    margin_home_by4plus: str | None = Form(None),
     margin_draw: str | None = Form(None),
     margin_away_by1: str | None = Form(None),
-    margin_away_by2plus: str | None = Form(None),
+    margin_away_by2: str | None = Form(None),
+    margin_away_by3: str | None = Form(None),
+    margin_away_by4plus: str | None = Form(None),
 ):
     fixture = db.query(Fixture).filter(Fixture.id == fixture_id, Fixture.source == "manual").one_or_none()
     if fixture is None:
@@ -163,15 +201,17 @@ def manual_edit_submit(
     save_manual_odds(
         db,
         fixture.id,
-        ManualOddsInput(
+        _build_manual_odds_input(
             odds_1x2_home=odds_1x2_home, odds_1x2_draw=odds_1x2_draw, odds_1x2_away=odds_1x2_away,
-            odds_dnb_home=_to_float(odds_dnb_home), odds_dnb_away=_to_float(odds_dnb_away),
+            odds_dnb_home=odds_dnb_home, odds_dnb_away=odds_dnb_away,
             favorite_team=favorite_team,
-            odds_ah05_favorite=_to_float(odds_ah05_favorite), odds_ah05_underdog=_to_float(odds_ah05_underdog),
-            odds_ah1_favorite=_to_float(odds_ah1_favorite), odds_ah1_underdog=_to_float(odds_ah1_underdog),
-            margin_home_by1=_to_float(margin_home_by1), margin_home_by2plus=_to_float(margin_home_by2plus),
-            margin_draw=_to_float(margin_draw),
-            margin_away_by1=_to_float(margin_away_by1), margin_away_by2plus=_to_float(margin_away_by2plus),
+            odds_ah05_favorite=odds_ah05_favorite, odds_ah05_underdog=odds_ah05_underdog,
+            odds_ah1_favorite=odds_ah1_favorite, odds_ah1_underdog=odds_ah1_underdog,
+            margin_home_by1=margin_home_by1, margin_home_by2=margin_home_by2,
+            margin_home_by3=margin_home_by3, margin_home_by4plus=margin_home_by4plus,
+            margin_draw=margin_draw,
+            margin_away_by1=margin_away_by1, margin_away_by2=margin_away_by2,
+            margin_away_by3=margin_away_by3, margin_away_by4plus=margin_away_by4plus,
         ),
     )
     return RedirectResponse(url=f"/fixtures/{fixture.id}", status_code=303)

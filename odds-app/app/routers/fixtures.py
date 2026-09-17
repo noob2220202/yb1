@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.models.fixture import Fixture
 from app.models.market import Market
 from app.models.odds import Odds
 from app.services.combo_engine import compute_and_cache_combos
+from app.services.pick_service import save_pick
 from app.templating import templates
 
 router = APIRouter()
@@ -105,3 +106,49 @@ def fixture_detail(fixture_id: int, request: Request, db: Session = Depends(get_
             "combos": combos,
         },
     )
+
+
+@router.post("/fixtures/{fixture_id}/picks")
+def save_pick_from_fixture(
+    fixture_id: int,
+    db: Session = Depends(get_db),
+    combo_type: str = Form(...),
+    description: str = Form(...),
+    leg_a_selection: str = Form(...),
+    leg_b_selection: str = Form(...),
+    favorite_side: str = Form(...),
+    odds_leg_a: float = Form(...),
+    odds_leg_b: float = Form(...),
+    stake_leg_a: float = Form(...),
+    stake_leg_b: float = Form(...),
+    total_stake: float = Form(...),
+    target_profit: float = Form(...),
+    implied_hit_rate: float = Form(...),
+    breakeven_prob: float = Form(...),
+    estimated_ev_pct: float = Form(...),
+):
+    fixture = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
+    if fixture is None:
+        raise HTTPException(status_code=404, detail="fixture를 찾을 수 없습니다")
+
+    save_pick(
+        db,
+        fixture_id=fixture.id,
+        home_team=fixture.home_team,
+        away_team=fixture.away_team,
+        combo_type=combo_type,
+        description=description,
+        leg_a_selection=leg_a_selection,
+        leg_b_selection=leg_b_selection,
+        favorite_side=favorite_side,
+        odds_leg_a=odds_leg_a,
+        odds_leg_b=odds_leg_b,
+        stake_leg_a=stake_leg_a,
+        stake_leg_b=stake_leg_b,
+        total_stake=total_stake,
+        target_profit=target_profit,
+        implied_hit_rate=implied_hit_rate,
+        breakeven_prob=breakeven_prob,
+        estimated_ev_pct=estimated_ev_pct,
+    )
+    return RedirectResponse(url=f"/fixtures/{fixture_id}?saved=1", status_code=303)

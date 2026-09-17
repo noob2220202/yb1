@@ -60,6 +60,12 @@ def test_generate_combo_candidates_full_data(db_session):
         assert 0 <= c["implied_hit_rate"] <= 1
         assert isinstance(c["ev_negative"], bool)
         assert c["ev_negative"] == (c["estimated_ev_pct"] < 0)
+        # Pick 저장(save)이 의존하는 필드들이 항상 채워져 있어야 함
+        assert c["favorite_side"] == "home"
+        assert c["odds_leg_a"] > 1.0
+        assert c["odds_leg_b"] > 1.0
+        assert c["stake_leg_a"] > 0
+        assert c["stake_leg_b"] > 0
 
     dnb_candidate = next(c for c in candidates if c["combo_type"] == "draw_dnb0")
     assert dnb_candidate["leg_b_selection"] == "home"  # 홈팀이 favorite이므로 DNB는 홈팀 쪽
@@ -68,6 +74,31 @@ def test_generate_combo_candidates_full_data(db_session):
     margin_candidate = next(c for c in candidates if c["combo_type"] == "ahplus1_margin1")
     assert margin_candidate["leg_a_selection"] == "away"  # 원정팀이 underdog
     assert margin_candidate["leg_b_selection"] == "home_by_1"
+
+
+def test_implied_hit_rate_never_exceeds_one_even_with_inconsistent_markets(db_session):
+    """회귀 테스트: 1X2 마켓과 승리마진 마켓을 각각 독립적으로 devig해서 더하면
+    100%를 넘는 경우가 실제로 있었다(사용자가 수동입력에서 재현: 109.5%).
+    두 마켓의 확률에 서로 다른 북메이커 마진이 섞여 있으면 합이 1을 넘을 수
+    있다 — 승리마진 마켓 하나의 분포만으로 계산하도록 고쳤으므로 항상 1
+    이하여야 한다(옛 공식으로는 이 데이터에서 106.6%가 나와 실패했음)."""
+    fixture = _build_fixture(db_session)
+    # 1X2: 홈이 근소 우위(약 44% 확률)
+    _add_market(db_session, fixture.id, "1x2", None, "TestBook", {"home": 2.20, "draw": 3.30, "away": 3.40})
+    _add_market(db_session, fixture.id, "ah", Decimal("-1.0"), "TestBook", {"home": 1.30, "away": 3.20})
+    # home_by_1이 비정상적으로 짧은 오즈(1.80) — 승리마진 마켓에서 devig한
+    # "홈 1골차 승" 확률(약 50%)이 1X2 마켓의 "홈 승" 확률(약 44%)보다 커지는
+    # 마켓간 불일치를 재현 (현실에서는 불가능하지만 손입력 데이터에서는 발생)
+    _add_market(
+        db_session, fixture.id, "win_margin", None, "TestBook",
+        {"home_by_1": 1.80, "home_by_2plus": 8.0, "draw": 4.5, "away_by_1": 6.0, "away_by_2plus": 10.0},
+    )
+    db_session.commit()
+
+    candidates = generate_combo_candidates(db_session, fixture, total_stake=30000)
+    margin_candidate = next(c for c in candidates if c["combo_type"] == "ahplus1_margin1")
+
+    assert 0.0 <= margin_candidate["implied_hit_rate"] <= 1.0
 
 
 def test_generate_combo_candidates_returns_empty_without_1x2(db_session):

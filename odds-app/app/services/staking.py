@@ -11,6 +11,29 @@ from __future__ import annotations
 
 STAKING_DISCLAIMER = "이 배분은 손익 분산만 줄일 뿐 기대값을 개선하지 않습니다"
 
+# 시나리오 dict의 key는 내부 로직(grading.py 등)에서 그대로 매칭에 쓰이므로 바꾸지 않고,
+# 화면/텔레그램 표시용 한국어 라벨만 별도로 둔다.
+SCENARIO_LABELS_KO = {
+    "draw": "무승부",
+    "home_win": "정배팀 승",
+    "away_win": "역배팀 승 (양쪽 다리 실패)",
+    "underdog_win_or_draw": "역배승 또는 무승부",
+    "favorite_margin1": "정배 1골차 승",
+    "favorite_margin2plus": "정배 2골차+ 승 (양쪽 다리 실패)",
+}
+
+LEG_RESULT_LABELS_KO = {
+    "win": "적중",
+    "lose": "실패",
+    "push": "환급(적중/실패 아님)",
+}
+
+COMBO_TYPE_LABELS_KO = {
+    "draw_dnb0": "무승부 + 정배팀 DNB(AH0)",
+    "draw_ah05": "무승부 + 정배팀 AH-0.5",
+    "ahplus1_margin1": "역배팀 AH+1 + 정배팀 정확히 1골차 승",
+}
+
 
 def equal_profit_stakes(odds_list: list[float], total_stake: float) -> list[float]:
     """일반화된 다중 결과 균등이익 배분 (push 없음, 기본 dutching).
@@ -182,6 +205,18 @@ COMBO_CALCULATORS = {
     "draw_ah05": calc_draw_ah05_stakes,
     "ahplus1_margin1": calc_ahplus1_margin1_stakes,
 }
+
+
+def first_leg_stake(staking: dict) -> float:
+    """calc_* 결과 dict에서 다리 A(첫 번째)의 스테이크를 이름에 상관없이 뽑아낸다."""
+    stake_keys = [k for k in staking if k.startswith("stake_")]
+    return staking[stake_keys[0]]
+
+
+def second_leg_stake(staking: dict) -> float:
+    """calc_* 결과 dict에서 다리 B(두 번째)의 스테이크를 이름에 상관없이 뽑아낸다."""
+    stake_keys = [k for k in staking if k.startswith("stake_")]
+    return staking[stake_keys[1]]
 
 
 def target_profit_for_total_stake(calc_fn, odds_a: float, odds_b: float, total_stake: float) -> float:
