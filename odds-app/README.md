@@ -86,8 +86,8 @@ alembic upgrade head
 ### 6. 로컬에서 한 번 확인
 
 ```bash
-python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
-curl http://127.0.0.1:8000/health   # {"status":"ok","db":true}
+python3 -m uvicorn app.main:app --host 127.0.0.1 --port 6666 &
+curl http://127.0.0.1:6666/health   # {"status":"ok","db":true}
 kill %1   # 확인 후 종료 (pm2로 다시 띄울 것이므로)
 ```
 
@@ -186,12 +186,12 @@ mock 클라이언트를 주입해 샘플 fixture를 넣을 수 있다. 예시는
 
 ## Caddy 리버스 프록시로 도메인 연결 (선택)
 
-pm2가 `127.0.0.1:8000`(정확히는 `0.0.0.0:8000`)에서 서비스를 띄우고 있으므로,
+pm2가 `127.0.0.1:6666`(정확히는 `0.0.0.0:6666`)에서 서비스를 띄우고 있으므로,
 기존 Caddy에 한 줄만 추가하면 된다 (`deploy/Caddyfile.snippet` 참고):
 
 ```
 odds.본인도메인.com {
-    reverse_proxy localhost:8000
+    reverse_proxy localhost:6666
 }
 ```
 
