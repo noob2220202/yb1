@@ -43,7 +43,19 @@ cd yb1/odds-app
 ### 3. 파이썬 의존성 설치 (venv 없이 시스템에 직접)
 
 ```bash
-pip install --break-system-packages -r requirements.txt
+python3 -m pip install --break-system-packages -r requirements.txt
+```
+
+> `no such option: --break-system-packages` 에러가 나면, 그 시스템의 pip는
+> PEP668 제한이 아예 없는 구버전이라 플래그 자체를 모른다는 뜻이다. 플래그
+> 없이 그냥 설치하면 된다: `python3 -m pip install -r requirements.txt`.
+> 설치가 조용히 실패하면 이후 모든 단계가 이상하게 꼬이니(예: alembic이
+> 설치 안 된 채로 `python3 -m alembic`을 실행하면 `odds-app/alembic/`
+> 마이그레이션 폴더를 패키지로 착각해 알 수 없는 에러가 난다), 아래로
+> 반드시 설치 확인을 하고 넘어갈 것.
+
+```bash
+python3 -c "import fastapi, alembic, sqlalchemy, apscheduler; print('설치 OK')"
 ```
 
 ### 4. 환경변수 설정
@@ -60,9 +72,16 @@ cp .env.example .env
 ### 5. DB 마이그레이션 (SQLite 파일 생성)
 
 ```bash
-python3 -m alembic upgrade head
+alembic upgrade head
 # odds-app/oddsapp.db 파일이 생성된다
 ```
+
+> `alembic: command not found`면 pip 스크립트 설치 경로가 PATH에 없는 것이다:
+> `export PATH="$HOME/.local/bin:$PATH"` 후 재시도하거나, 그래도 안 되면
+> `python3 -c "from alembic.config import main; main(['upgrade','head'])"`로
+> 실행할 수 있다. (`python3 -m alembic`은 쓰지 말 것 — 현재 디렉토리에 있는
+> `odds-app/alembic/` 마이그레이션 폴더와 이름이 겹쳐서, 실제 alembic이 설치
+> 안 된 상태에서 실행하면 혼란스러운 에러가 난다.)
 
 ### 6. 로컬에서 한 번 확인
 
@@ -108,8 +127,8 @@ pm2 logs odds-app         # 실시간 로그
 cd /opt/yb1
 git pull
 cd odds-app
-pip install --break-system-packages -r requirements.txt   # 의존성 변경 시
-python3 -m alembic upgrade head                            # 스키마 변경 시
+python3 -m pip install --break-system-packages -r requirements.txt   # 의존성 변경 시
+alembic upgrade head                                                  # 스키마 변경 시
 pm2 restart odds-app
 ```
 
